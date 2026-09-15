@@ -2,6 +2,18 @@
 
 Optional, independently installed applets for [Winarchy](https://github.com/YannickHerrero/winarchy). This repository does not modify or vendor the Winarchy engine.
 
+## Activity Monitor
+
+[`activity-monitor/`](activity-monitor/README.md) combines the CPU and RAM bar modules into a themed Windows dashboard: real resource histories, network/disk rates, local storage and a searchable process table with identity-checked termination. A small native Rust collector runs without admin rights or a permanent service. CPU/RAM continue at a slower cadence while closed; process and I/O enumeration stop.
+
+Build its Windows collector, then use **its separate installer**:
+
+```sh
+python3 activity-monitor/install.py --config /mnt/c/Users/<WindowsUser>/.config/winarchy
+```
+
+It backs up `bar.toml`, replaces only CPU/memory entries and leaves Claude's relay/settings alone. See its README for precise metric scopes, measured startup overhead and safe rollback instructions.
+
 ## Claude usage
 
 `claude-usage/` displays Claude Code's **account quota**, not context-window fullness or locally estimated token costs. The initial data source is the official Claude Code statusline JSON (`rate_limits.five_hour` and `rate_limits.seven_day`).
@@ -24,7 +36,7 @@ This preserves the current statusline, backs up settings, and adds the applet to
 
 ## Development
 
-Python 3.11+ (standard library) for WSL collection and setup; Windows PowerShell 5.1 for the provider; Slint 1.12.1 for the view. Keep all generated data and private settings out of Git.
+Claude Usage uses Python 3.11+ (standard library) for its WSL relay/setup and Windows PowerShell 5.1 for its provider. Activity Monitor uses Rust 1.89+ to build a standalone Windows executable, with Python only for installation. Both use Slint 1.12.1 views. Keep all generated data and private settings out of Git.
 
 Atomic commits must use `YannickHerrero <yannick.herrero@proton.me>`. No remote or publication is configured automatically.
 
