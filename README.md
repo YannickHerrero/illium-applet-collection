@@ -30,6 +30,6 @@ Atomic commits must use `YannickHerrero <yannick.herrero@proton.me>`. No remote 
 
 ## Attribution
 
-Independent, unofficial integration; not affiliated with Anthropic. Claude is an Anthropic trademark. The monochrome burst icon is drawn for this applet, not copied from a theme or claimed to be an official logo.
+Independent, unofficial integration; not affiliated with Anthropic. Claude is an Anthropic trademark. The Claude silhouette comes from Simple Icons (CC0), whose declared source is claude.ai. See [icon provenance and trademark notice](claude-usage/ICON-SOURCE.md). Its color follows the active Winarchy theme.
 
 Reference: https://code.claude.com/docs/en/statusline#rate-limit-usage

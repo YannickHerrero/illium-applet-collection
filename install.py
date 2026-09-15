@@ -12,7 +12,7 @@ import tempfile
 import tomllib
 
 ROOT = Path(__file__).resolve().parent
-FILES = ('applet.toml', 'view.slint', 'icon.svg', 'claude-usage.ps1')
+FILES = ('applet.toml', 'view.slint', 'icon.svg', 'claude-usage.ps1', 'ICON-SOURCE.md', 'ICON-LICENSE.md')
 
 
 def patched_bar(raw):
