@@ -2,4 +2,4 @@ icon = "icon.svg"
 label = "{bar_label}"
 interval = "30s"
 focusable = true
-popup = { width = 390, height = 420 }
+popup = { width = 390, height = 520 }

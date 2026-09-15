@@ -1,6 +1,6 @@
 # Claude usage applet
 
-English-language Winarchy panel for the official Claude Code statusline quota fields. The bar shows **5-hour account quota used**, not context utilization. The popup shows 5-hour and weekly quotas, reset times, a linear pace marker and source freshness.
+English-language Winarchy panel for the official Claude Code statusline quota fields. The bar shows **5-hour account quota used**, not context utilization. The popup shows 5-hour and weekly quotas, reset times, a linear pace marker and source freshness. A separate, optional CLI probe adds **Fable · Weekly** when Claude Code exposes that quota.
 
 ## Requirements
 
@@ -10,7 +10,7 @@ English-language Winarchy panel for the official Claude Code statusline quota fi
 - An authenticated Claude Code session that actually emits `rate_limits`. Documentation lists Pro/Max and supported gateway accounts; organization-managed accounts must be checked on real data. No subscription type is inferred from a local credential file.
 - One Claude account across participating WSL sessions. This integration does not inspect account identities.
 
-The applet and relay do not read authentication files, refresh tokens, scrape Desktop cookies, scan transcripts, send prompts or make authenticated HTTP requests. They do not require an Anthropic API key, Node.js, a paid API balance, an administrator shell or a new daemon.
+The applet and relay do not read authentication files, refresh tokens, scrape Desktop cookies, scan transcripts or send prompts. For Fable, Claude Code itself may make an authenticated usage request; the collection never handles credentials or calls the OAuth endpoint directly. They do not require an Anthropic API key, Node.js, a paid API balance, an administrator shell or a new daemon.
 
 ## Install from WSL
 
@@ -26,11 +26,11 @@ The installer:
 1. Refuses to overwrite an existing applet/relay.
 2. Backs up Claude settings and the bar configuration under `~/.local/state/winarchy-applet-collection/backups/` with private permissions.
 3. Copies the complete applet to Windows `~/.config/winarchy/applets/claude-usage/`.
-4. Copies `bridge.py` to `~/.local/share/winarchy-applets/claude-usage/` in WSL.
+4. Copies `bridge.py` and `fable.py` to `~/.local/share/winarchy-applets/claude-usage/` in WSL.
 5. Wraps the current Claude statusline command, preserving its options and exact stdout/exit status.
 6. Adds only `claude-usage` to the bar's right-hand array. All other settings are retained.
 
-No Winarchy repository changes, rebuild, daemon restart or token copying are needed. A single-line `right` array is required for automatic bar editing; other layouts fail safely and can be configured manually. Concurrent settings edits cancel setup; failed live writes are rolled back when the files still match the installer's own writes.
+No Winarchy repository changes, rebuild, daemon restart or token copying are needed. Fable uses a short-lived Claude Code process, not a new persistent service. A single-line `right` array is required for automatic bar editing; other layouts fail safely and can be configured manually. Concurrent settings edits cancel setup; failed live writes are rolled back when the files still match the installer's own writes.
 
 Use a Claude Code session normally after setup. Active sessions may pick up settings automatically; restart a session if it still uses the previous statusline command. The applet shows `—` until real quota fields arrive. No demo data is installed as live usage.
 
@@ -55,7 +55,19 @@ The cache is deliberately outside the watched Winarchy configuration. Concurrent
 
 The pace marker compares percentage consumed with the elapsed fraction of a 5-hour/7-day window. The +/-3 point tolerance is a display convention, not an Anthropic limit or forecast. Weekly and session quotas overlap; do not add them together.
 
-This documented source supplies neither model-specific rows nor a dollar balance/extra-usage budget. The applet therefore does not fabricate Sonnet/Opus/Fable rows, a subscription badge or a financial section.
+### Fable (experimental CLI source)
+
+The statusline does not include Fable. With `fable_probe: true` in the installed relay's `bridge.json`, an active statusline can start a detached worker at most once every five minutes. A nonblocking lock prevents overlapping probes. The existing statusline never waits for this worker.
+
+The worker uses the configured `claude` executable and only sends `initialize` and `get_usage` control requests. `skip_behaviors: true` prevents transcript analysis; tools, MCP servers, hooks and session persistence are disabled, with no user prompt sent. Execution is bounded to 20 seconds plus process cleanup and output to 1 MiB. No raw response or diagnostic body is logged or saved.
+
+The parser accepts only the named Fable weekly bucket from `model_scoped` or `limits[]`. It writes percentages and timestamps to `fable.json` beside the main snapshot. Other models, costs and account metadata are discarded. The parser and protocol were validated with Claude Code 2.1.272; this API is explicitly experimental and may change independently of the applet.
+
+**Freshness is conservative:** the CLI can return cached quota data without identifying it as cached. Repeated identical Fable values do not reset their age. After ten minutes they become `~54%`/last-known even if the actual quota might simply have stayed unchanged. A changed percentage or reset timestamp starts a new observation. An absent/failed probe preserves the previous value's age rather than inventing 0% or breaking the main two quotas. Opening `/usage` in Claude Code can populate its detailed usage cache when a cold probe returns no data.
+
+Set `fable_probe` to false to stop background probes; remove only `fable.json` to hide its previous row. Clear both quota snapshots on account changes. The bar always remains the **5-hour** value, never the Fable value.
+
+Other model rows, subscription badges and dollar balances remain unsupported and are not fabricated.
 
 ## Troubleshooting / removal
 

@@ -6,9 +6,9 @@ Optional, independently installed applets for [Winarchy](https://github.com/Yann
 
 `claude-usage/` displays Claude Code's **account quota**, not context-window fullness or locally estimated token costs. The initial data source is the official Claude Code statusline JSON (`rate_limits.five_hour` and `rate_limits.seven_day`).
 
-A WSL relay preserves your existing statusline output and writes only quota percentages, reset timestamps and receipt timestamps to a Windows-readable snapshot. No OAuth tokens, cookies, API keys, transcript contents, project paths or account email are read or stored by the relay/applet. No additional inference or authenticated HTTP request is made.
+A WSL relay preserves your existing statusline output and writes only quota percentages, reset timestamps and receipt timestamps to a Windows-readable snapshot. No OAuth tokens, cookies, API keys, transcript contents, project paths or account email are read or stored by the relay/applet. No additional inference is generated. An optional bounded CLI probe fetches Fable through Claude Code's experimental usage control API; Claude Code handles any authentication and usage request itself.
 
-**Limits:** Claude Code must supply the fields during an active authenticated session. Merely leaving an idle CLI open does not guarantee fresh server data. Missing data never becomes 0%, expired windows never remain current, and a weekly quota never substitutes for the 5-hour bar value. This source does not provide per-model quotas, subscription badges or dollar spending; those are not fabricated.
+**Limits:** Claude Code must supply the fields during an active authenticated session. Merely leaving an idle CLI open does not guarantee fresh server data. Missing data never becomes 0%, expired windows never remain current, and a weekly quota never substitutes for the 5-hour bar value. The statusline source does not provide per-model quotas. A separate CLI probe supplies Fable when available; subscription badges, other model quotas and dollar spending are not fabricated.
 
 The relay assumes one Claude account across your WSL sessions. Clear the snapshot when switching accounts. The source receipt time is not an independently verified server measurement time.
 

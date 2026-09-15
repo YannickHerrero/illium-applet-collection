@@ -84,6 +84,28 @@ def publish(path, payload, now=None):
     return True
 
 
+def start_fable(settings):
+    if settings.get('fable_probe') is not True:
+        return
+    directory = Path(settings['cache']).parent
+    worker = Path(__file__).with_name('fable.py')
+    if not worker.is_file():
+        return
+    attempt = directory / 'fable-attempt.json'
+    try:
+        if 0 <= time.time() - attempt.stat().st_mtime < 300:
+            return
+    except FileNotFoundError:
+        pass
+    # The worker owns a nonblocking lock and checks the interval again. Even
+    # simultaneous statuslines cannot start overlapping Claude probes.
+    directory.mkdir(parents=True, exist_ok=True)
+    subprocess.Popen([sys.executable, str(worker), '--directory', str(directory),
+                      '--claude', settings.get('claude', 'claude')],
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
@@ -94,6 +116,7 @@ def main():
     if len(payload) <= MAX_INPUT:
         try:
             publish(settings["cache"], json.loads(payload))
+            start_fable(settings)
         except (OSError, ValueError, TypeError, AttributeError):
             pass
     command = settings.get("delegate", "")

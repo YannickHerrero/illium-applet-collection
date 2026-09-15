@@ -15,6 +15,7 @@ output = Path(sys.argv[1])
 output.mkdir(parents=True, exist_ok=True)
 quota = {"label": "Session · 5h", "value": 34, "used": "34%", "resets": "Resets in 4h 14m", "reset-time": "Mon 21:07", "pace": "19 pts ahead", "pace-value": 15, "fresh": True, "ahead": True}
 data = {"message": "From active Claude Code sessions on WSL", "updated": "Last CLI update 16:53 · 0m ago", "error": "", "windows": [quota, dict(quota, label="Weekly", value=68, used="68%", resets="Resets in 2d 5h", pace="On linear pace", **{"pace-value":68, "ahead":False})]}
+data['windows'].append(dict(quota, label='Fable · Weekly', value=54, used='54%', resets='Resets in 5d 20h', pace='38 pts ahead', **{'pace-value':16}))
 for name, values in [
     ("dark", {"data": data}),
     ("light", {"data": data, "bg":"#ffffff", "surface":"#f7f7f7", "overlay":"#e6e6e6", "fg":"#0a0a0a", "muted":"#565656", "accent":"#0a0a0a"}),

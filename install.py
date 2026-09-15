@@ -74,7 +74,7 @@ def install(windows_home, config_home, claude_home, local_home):
     command = shlex.join(['python3', str(runtime / 'bridge.py'), '--config', str(runtime / 'bridge.json')])
     settings['statusLine'] = dict(statusline, type='command', command=command)
     new_settings = (json.dumps(settings, indent=2, ensure_ascii=False) + '\n').encode()
-    bridge_config = (json.dumps({'cache': str(cache), 'delegate': delegate}, indent=2) + '\n').encode()
+    bridge_config = (json.dumps({'cache': str(cache), 'delegate': delegate, 'fable_probe': True, 'claude': shutil.which('claude') or 'claude'}, indent=2) + '\n').encode()
     # Backups are private, outside Git and outside the watched Winarchy configuration.
     backup_root = local_home / '.local/state/winarchy-applet-collection/backups'
     backup_root.mkdir(parents=True, exist_ok=True)
@@ -86,7 +86,8 @@ def install(windows_home, config_home, claude_home, local_home):
     try:
         runtime.mkdir(parents=True)
         created.append(runtime)
-        shutil.copyfile(ROOT / 'claude-usage/bridge.py', runtime / 'bridge.py')
+        for name in ('bridge.py', 'fable.py'):
+            shutil.copyfile(ROOT / 'claude-usage' / name, runtime / name)
         (runtime / 'bridge.json').write_bytes(bridge_config)
         target.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix='.claude-install-', dir=target.parent) as stage:

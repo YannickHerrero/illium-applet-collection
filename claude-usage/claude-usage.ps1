@@ -13,14 +13,16 @@ function Remaining([double]$seconds) {
     if ($minutes -ge 60) { return "Resets in $([Math]::Floor($minutes / 60))h $($minutes % 60)m" }
     return "Resets in ${minutes}m"
 }
-function Build-Data($snapshot, [long]$now) {
+function Build-Data($snapshot, [long]$now, $fable = $null) {
     $data = [ordered]@{ bar_label = '—'; message = 'Waiting for Claude Code usage data'; updated = 'No quota snapshot yet'; windows = @(); error = '' }
-    if ($null -eq $snapshot) { return $data }
-    if ($snapshot.schema -ne 1 -or $snapshot.source -ne 'claude-code-statusline') { throw 'Unsupported quota snapshot format' }
+    if ($null -eq $snapshot -and $null -eq $fable) { return $data }
+    if ($null -ne $snapshot -and ($snapshot.schema -ne 1 -or $snapshot.source -ne 'claude-code-statusline')) { throw 'Unsupported quota snapshot format' }
     $latest = 0
-    foreach ($definition in @(@('five_hour', 'Session · 5h', 18000), @('seven_day', 'Weekly', 604800))) {
+    foreach ($definition in @(@('five_hour', 'Session · 5h', 18000), @('seven_day', 'Weekly', 604800), @('fable', 'Fable · Weekly', 604800))) {
         $key, $title, $duration = $definition
-        $item = $snapshot.windows.$key
+        $item = if ($key -eq 'fable') {
+            if ($null -ne $fable -and $fable.schema -eq 1 -and $fable.source -eq 'claude-code-usage') { $fable.window } else { $null }
+        } else { $snapshot.windows.$key }
         if ($null -eq $item -or -not (Test-Number $item.used_percentage) -or -not (Test-Number $item.resets_at) -or -not (Test-Number $item.received_at)) { continue }
         $used = [double]$item.used_percentage
         $reset = [double]$item.resets_at
@@ -49,22 +51,27 @@ function Build-Data($snapshot, [long]$now) {
     return $data
 }
 
+function Read-Snapshot([string]$path) {
+    if (-not (Test-Path -LiteralPath $path)) { return $null }
+    # Share delete access so WSL can atomically replace a snapshot while we read.
+    $stream = [IO.File]::Open($path, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+    try {
+        if ($stream.Length -gt 8192) { throw 'Quota snapshot exceeds 8 KiB' }
+        $reader = New-Object IO.StreamReader($stream, [Text.Encoding]::UTF8)
+        try { return ($reader.ReadToEnd() | ConvertFrom-Json) } finally { $reader.Dispose() }
+    } finally { $stream.Dispose() }
+}
+
 if ($FunctionsOnly) { return }
 try {
     if ($Action -eq 'open') { Start-Process 'https://claude.ai/settings/usage' }
     elseif ($Action -notin @('', 'refresh')) { throw 'Unknown Claude usage action' }
     $cache = if ($env:WINARCHY_APPLET_CACHE_PATH) { $env:WINARCHY_APPLET_CACHE_PATH } else { Join-Path $env:LOCALAPPDATA 'Winarchy/cache/claude-usage/snapshot.json' }
-    $snapshot = $null
-    if (Test-Path -LiteralPath $cache) {
-        # Share delete access so WSL can atomically replace the file while we read.
-        $stream = [IO.File]::Open($cache, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
-        try {
-            if ($stream.Length -gt 8192) { throw 'Quota snapshot exceeds 8 KiB' }
-            $reader = New-Object IO.StreamReader($stream, [Text.Encoding]::UTF8)
-            try { $snapshot = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
-        } finally { $stream.Dispose() }
-    }
-    $data = Build-Data $snapshot ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())
+    $snapshot = Read-Snapshot $cache
+    # An unavailable experimental source must never break the main two quotas.
+    $fable = $null
+    try { $fable = Read-Snapshot (Join-Path (Split-Path $cache) 'fable.json') } catch { }
+    $data = Build-Data $snapshot ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) $fable
 } catch {
     $data = Build-Data $null 0
     $data.message = 'Quota snapshot unavailable'

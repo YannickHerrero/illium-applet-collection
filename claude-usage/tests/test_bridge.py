@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[1] / "bridge.py"
 spec = importlib.util.spec_from_file_location("bridge", SCRIPT)
@@ -73,6 +74,20 @@ class BridgeTests(unittest.TestCase):
         bridge.publish(self.cache, payload(), NOW)
         self.assertEqual(json.loads(self.cache.read_text())["schema"], 1)
         self.assertEqual(list(self.cache.parent.glob('.quota-*')), [])
+
+    def test_optional_probe_is_throttled_and_detached(self):
+        settings = {'cache': str(self.cache), 'fable_probe': True, 'claude': '/path/to/claude'}
+        with patch.object(bridge.subprocess, 'Popen') as spawn:
+            bridge.start_fable(dict(settings, fable_probe=False))
+            spawn.assert_not_called()
+            bridge.start_fable(settings)
+            self.assertEqual(spawn.call_count, 1)
+            self.assertTrue(spawn.call_args.kwargs['start_new_session'])
+            self.assertEqual(spawn.call_args.kwargs['stdin'], subprocess.DEVNULL)
+            self.assertEqual(spawn.call_args.kwargs['stdout'], subprocess.DEVNULL)
+            (self.cache.parent/'fable-attempt.json').write_text('{}')
+            bridge.start_fable(settings)
+            self.assertEqual(spawn.call_count, 1)
 
     def test_delegate_receives_original_unicode_input_and_keeps_exit_code(self):
         config = self.cache.parent / "bridge.json"

@@ -38,6 +38,8 @@ class InstallTests(unittest.TestCase):
         self.assertIn('bridge.py', settings['statusLine']['command'])
         relay = json.loads((Path(result['relay']) / 'bridge.json').read_text())
         self.assertEqual(relay['delegate'], self.original['statusLine']['command'])
+        self.assertTrue(relay['fable_probe'])
+        self.assertTrue((Path(result['relay']) / 'fable.py').is_file())
         self.assertEqual(tomllib.loads((self.config / 'bar.toml').read_text())['right'], ['wifi', 'claude-usage'])
         self.assertIn('# retain comment', (self.config / 'bar.toml').read_text())
         self.assertEqual((Path(result['backup']) / 'bar.toml').read_bytes(), self.bar)

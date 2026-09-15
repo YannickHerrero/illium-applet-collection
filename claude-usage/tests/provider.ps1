@@ -23,4 +23,13 @@ foreach ($bad in @($true,'34',-1,101,[double]::NaN)) {
 Assert ((Build-Data $null $now).windows.Count -eq 0) 'Missing snapshot'
 Assert ((Remaining 1) -eq 'Resets in 1m') 'Ceil the remaining minute'
 Assert ((Remaining 90061) -eq 'Resets in 1d 1h') 'Long duration'
+$five.used_percentage=34
+$fable = [pscustomobject]@{schema=1;source='claude-code-usage';window=[pscustomobject]@{used_percentage=54;resets_at=$now+400000;received_at=$now}}
+$data = Build-Data (Snapshot $five $week) $now $fable
+Assert ($data.windows.Count -eq 3 -and $data.windows[2].label -eq 'Fable · Weekly') 'Fable is a separate third row'
+Assert ($data.windows[2].used -eq '54%' -and $data.bar_label -eq '34%') 'Fable must not replace the five-hour bar'
+Assert ((Build-Data $null $now $fable).bar_label -eq '—') 'Fable-only does not imply a session percentage'
+Assert ((Build-Data (Snapshot $five $week) ($now+601) $fable).windows[2].used -eq '~54%') 'Unverified Fable data becomes stale'
+$fable.schema=99
+Assert ((Build-Data (Snapshot $five $week) $now $fable).windows.Count -eq 2) 'Invalid Fable metadata does not break other quotas'
 Write-Output 'Claude provider fixtures passed (no credentials or network access).'
