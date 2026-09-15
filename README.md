@@ -12,6 +12,16 @@ A WSL relay preserves your existing statusline output and writes only quota perc
 
 The relay assumes one Claude account across your WSL sessions. Clear the snapshot when switching accounts. The source receipt time is not an independently verified server measurement time.
 
+## Install
+
+See [Claude usage setup and limitations](claude-usage/README.md). From WSL:
+
+```sh
+python3 install.py --windows-home /mnt/c/Users/<WindowsUser>
+```
+
+This preserves the current statusline, backs up settings, and adds the applet to the installed Windows bar. It never modifies the Winarchy source repository.
+
 ## Development
 
 Python 3.11+ (standard library) for WSL collection and setup; Windows PowerShell 5.1 for the provider; Slint 1.12.1 for the view. Keep all generated data and private settings out of Git.
