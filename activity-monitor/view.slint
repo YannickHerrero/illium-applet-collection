@@ -1,0 +1,289 @@
+struct Process { key: string, pid: string, name: string, cpu: string, memory: string, can-end: bool }
+struct Volume { name: string, detail: string, used: float }
+struct Segment { x1: float, x2: float, y1: float, y2: float }
+struct Data {
+    cpu: string, ram: string, ram-detail: string, uptime: string,
+    cpu-chart: [Segment], ram-chart: [Segment],
+    network-name: string, down: string, up: string,
+    disk-name: string, disk-read: string, disk-write: string,
+    volumes: [Volume], processes: [Process], busiest: [Process], process-summary: string,
+    selected-key: string, selected-index: int, status: string, notice: string,
+}
+component Button inherits Rectangle {
+    in property <string> text;
+    in property <color> fg;
+    in property <color> fill;
+    in property <color> line;
+    in property <bool> enabled: true;
+    callback clicked();
+    height: 30px; border-radius: 3px; border-width: 1px; border-color: line;
+    background: touch.has-hover && enabled ? line : fill;
+    opacity: enabled ? 1 : 0.45;
+    Text { text: root.text; color: root.fg; font-size: 12px; vertical-alignment: center; horizontal-alignment: center; }
+    touch := TouchArea { enabled: root.enabled; clicked => { root.clicked(); } }
+}
+component Card inherits Rectangle {
+    in property <string> title;
+    in property <string> value;
+    in property <string> detail;
+    in property <[Segment]> chart;
+    in property <color> fg;
+    in property <color> muted;
+    in property <color> accent;
+    in property <color> line;
+    border-width: 1px; border-color: line; border-radius: 4px;
+    VerticalLayout {
+        padding: 12px; spacing: 6px;
+        HorizontalLayout {
+            Text { text: root.title; color: root.muted; font-size: 11px; vertical-alignment: center; horizontal-stretch: 1; }
+            Text { text: root.value == "" ? "—" : root.value; color: root.fg; font-size: 24px; font-weight: 600; }
+        }
+        Text { text: root.detail; color: root.muted; font-size: 10px; height: 30px; wrap: word-wrap; }
+        Rectangle {
+            height: 37px;
+            Rectangle { y: parent.height - 1px; height: 1px; width: parent.width; background: root.line; }
+            // SoftwareRenderer does not draw Path items. Two axis-aligned
+            // strokes per segment produce a real, timestamp-spaced step graph.
+            for segment in root.chart: Rectangle {
+                width: parent.width; height: parent.height;
+                Rectangle { x: (parent.width - 2px) * segment.x1 / 100; y: (parent.height - 2px) * (100 - segment.y1) / 100; width: max(1.5px, (parent.width - 2px) * (segment.x2 - segment.x1) / 100); height: 1.5px; background: root.accent; }
+                Rectangle { x: (parent.width - 2px) * segment.x2 / 100; y: (parent.height - 2px) * (100 - max(segment.y1, segment.y2)) / 100; width: 1.5px; height: max(1.5px, (parent.height - 2px) * abs(segment.y2 - segment.y1) / 100); background: root.accent; }
+            }
+        }
+    }
+}
+export component View inherits Window {
+    no-frame: true;
+    in property <length> popup-width: 580px;
+    in property <length> popup-height: 650px;
+    width: popup-width; height: popup-height;
+    in property <color> bg: #1e1e2e;
+    in property <color> surface: #313244;
+    in property <color> overlay: #45475a;
+    in property <color> fg: #cdd6f4;
+    in property <color> muted: #a6adc8;
+    in property <color> accent: #cba6f7;
+    in property <Data> data;
+    in property <bool> busy: false;
+    in property <bool> open: false;
+    in property <string> provider-error;
+    callback action(string, string, string, string);
+    callback completed();
+    callback dismissed();
+    callback cancel() -> bool;
+    in-out property <int> tab: 0;
+    property <string> sort: "cpu";
+    property <int> cursor: -1;
+    property <string> selection;
+    property <string> selected-name;
+    property <bool> selected-safe: false;
+    in-out property <bool> confirming: false;
+    property <string> target;
+    property <string> target-name;
+    property <bool> working: false;
+    property <bool> pending-refresh: false;
+    property <bool> can-act: !busy && !working && !confirming;
+    function refresh() {
+        if (root.can-act) { root.pending-refresh = false; root.action("sample", root.tab == 0 ? "" : search.text, root.tab == 0 ? "cpu" : root.sort, root.selection); }
+        else if (root.open && !root.confirming) { root.pending-refresh = true; }
+    }
+    function select(index: int) {
+        if (root.data.processes.length == 0 || root.confirming) { return; }
+        root.cursor = clamp(index, 0, root.data.processes.length - 1);
+        root.selection = root.data.processes[root.cursor].key;
+        root.selected-name = root.data.processes[root.cursor].name + " (PID " + root.data.processes[root.cursor].pid + ")";
+        root.selected-safe = root.data.processes[root.cursor].can-end;
+    }
+    function move(delta: int) {
+        root.select(root.cursor + delta);
+        process-list.viewport-y = -max(0px, (root.cursor + 1) * 36px - process-list.height);
+    }
+    function ask-end() {
+        if (root.can-act && root.selection != "" && root.selected-safe) {
+            root.target = root.selection; root.target-name = root.selected-name; root.confirming = true; keys.focus();
+        }
+    }
+    function finish-end() {
+        if (root.confirming && !root.busy && !root.working && root.target != "") {
+            root.working = true; root.confirming = false;
+            root.action("end", search.text, root.sort, root.target);
+            root.target = ""; keys.focus();
+        }
+    }
+    changed open => { if (root.open) { root.refresh(); } }
+    Timer { interval: 2s; running: root.open && root.can-act; triggered => { root.refresh(); } }
+    completed => {
+        root.working = false;
+        if (root.open && root.pending-refresh) { root.refresh(); }
+    }
+    // Winarchy invokes completed BEFORE assigning new data.
+    changed data => {
+        if (root.selection != "" && root.selection == root.data.selected-key) {
+            root.cursor = root.data.selected-index;
+            if (root.cursor < 0) { root.selection = ""; root.selected-safe = false; }
+            else if (root.cursor < root.data.processes.length) { root.selected-safe = root.data.processes[root.cursor].can-end; }
+        }
+    }
+    dismissed => { root.confirming = false; root.pending-refresh = false; root.target = ""; root.target-name = ""; keys.focus(); }
+    cancel => {
+        if (root.confirming) { root.confirming = false; root.target = ""; keys.focus(); return true; }
+        if (search.has-focus) { keys.focus(); return true; }
+        return false;
+    }
+    background: bg;
+    forward-focus: keys;
+    keys := FocusScope {
+        key-pressed(event) => {
+            if (root.confirming) {
+                if (event.text == Key.Escape) { root.confirming = false; root.target = ""; return accept; }
+                if (event.text == Key.Return) { root.finish-end(); return accept; }
+                return accept;
+            }
+            if (search.has-focus) { return reject; }
+            if (event.text == "/") { root.tab = 1; search.focus(); return accept; }
+            if (event.text == "r") { root.refresh(); return accept; }
+            if (event.text == "1") { root.tab = 0; root.refresh(); return accept; }
+            if (event.text == "2") { root.tab = 1; root.refresh(); return accept; }
+            if (root.tab == 1 && (event.text == "j" || event.text == Key.DownArrow)) { root.move(1); return accept; }
+            if (root.tab == 1 && (event.text == "k" || event.text == Key.UpArrow)) { root.move(-1); return accept; }
+            if (root.tab == 1 && event.text == "x") { root.ask-end(); return accept; }
+            return reject;
+        }
+        Rectangle {
+            border-width: 1px; border-color: root.accent;
+            VerticalLayout {
+                padding: 18px; spacing: 10px;
+                HorizontalLayout {
+                    height: 40px; spacing: 12px;
+                    Image { source: @image-url("icon.svg"); colorize: root.accent; width: 30px; height: 30px; }
+                    VerticalLayout {
+                        spacing: 3px; horizontal-stretch: 1;
+                        Text { text: "Activity Monitor"; color: root.fg; font-size: 20px; font-weight: 600; }
+                        Text { text: root.data.uptime == "" ? "Windows host" : root.data.uptime; color: root.muted; font-size: 11px; }
+                    }
+                    Text { text: root.tab == 1 ? "CPU " + root.data.cpu + " · RAM " + root.data.ram : ""; color: root.muted; font-size: 11px; }
+                }
+                HorizontalLayout {
+                    height: 30px; spacing: 8px;
+                    Button { text: "Overview"; fg: root.tab == 0 ? root.accent : root.fg; fill: root.bg; line: root.tab == 0 ? root.accent : root.overlay; enabled: !root.confirming; clicked => { root.tab = 0; root.refresh(); keys.focus(); } }
+                    Button { text: "Processes"; fg: root.tab == 1 ? root.accent : root.fg; fill: root.bg; line: root.tab == 1 ? root.accent : root.overlay; enabled: !root.confirming; clicked => { root.tab = 1; root.refresh(); keys.focus(); } }
+                }
+                Rectangle {
+                    vertical-stretch: 1;
+                    Flickable {
+                        visible: root.tab == 0; width: parent.width; height: parent.height;
+                        viewport-height: max(self.height, 362px + root.data.volumes.length * 28px);
+                        VerticalLayout {
+                            spacing: 10px; alignment: start;
+                            HorizontalLayout {
+                                height: 136px; spacing: 10px;
+                                Card { title: "CPU"; value: root.data.cpu; detail: "Total processor time · last 60s"; chart: root.data.cpu-chart; fg: root.fg; muted: root.muted; accent: root.accent; line: root.overlay; }
+                                Card { title: "MEMORY"; value: root.data.ram; detail: root.data.ram-detail; chart: root.data.ram-chart; fg: root.fg; muted: root.muted; accent: root.accent; line: root.overlay; }
+                            }
+                            HorizontalLayout {
+                                height: 76px; spacing: 18px;
+                                VerticalLayout {
+                                    spacing: 5px;
+                                    Text { text: "NETWORK · " + root.data.network-name; color: root.muted; font-size: 10px; overflow: elide; }
+                                    Text { text: "↓ " + root.data.down; color: root.fg; font-size: 16px; font-weight: 600; }
+                                    Text { text: "↑ " + root.data.up; color: root.muted; font-size: 12px; }
+                                }
+                                VerticalLayout {
+                                    spacing: 5px;
+                                    Text { text: "DISK · " + root.data.disk-name; color: root.muted; font-size: 10px; overflow: elide; }
+                                    Text { text: "Read  " + root.data.disk-read; color: root.fg; font-size: 16px; font-weight: 600; }
+                                    Text { text: "Write  " + root.data.disk-write; color: root.muted; font-size: 12px; }
+                                }
+                            }
+                            for volume in root.data.volumes: VerticalLayout {
+                                height: 28px; spacing: 5px;
+                                HorizontalLayout {
+                                    Text { text: volume.name; color: root.fg; font-size: 11px; horizontal-stretch: 1; }
+                                    Text { text: volume.detail; color: root.muted; font-size: 11px; }
+                                }
+                                Rectangle { height: 3px; background: root.surface;
+                                    Rectangle { x: 0px; y: 0px; height: parent.height; width: parent.width * clamp(volume.used / 100,0,1); background: root.accent; }
+                                }
+                            }
+                            Rectangle { height: 1px; background: root.overlay; }
+                            Text { text: "BUSIEST PROCESSES"; color: root.muted; font-size: 10px; height: 18px; }
+                            for process in root.data.busiest: Rectangle {
+                                height: 26px;
+                                HorizontalLayout {
+                                    spacing: 10px;
+                                    Text { text: process.name; color: root.fg; font-size: 12px; overflow: elide; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: process.cpu; color: root.fg; font-size: 12px; width: 60px; horizontal-alignment: right; vertical-alignment: center; }
+                                    Text { text: process.memory; color: root.muted; font-size: 12px; width: 84px; horizontal-alignment: right; vertical-alignment: center; }
+                                }
+                                TouchArea { enabled: root.can-act; clicked => { root.tab = 1; search.text = ""; root.sort = "cpu"; root.selection = process.key; root.selected-name = process.name + " (PID " + process.pid + ")"; root.selected-safe = process.can-end; root.refresh(); keys.focus(); } }
+                            }
+                        }
+                    }
+                    VerticalLayout {
+                        visible: root.tab == 1; width: parent.width; height: parent.height; spacing: 8px;
+                        Rectangle {
+                            height: 32px; border-width: 1px; border-color: search.has-focus ? root.accent : root.overlay; border-radius: 3px;
+                            Text { visible: search.text == "" && !search.has-focus; x: 9px; text: "Search name or PID  /"; color: root.muted; font-size: 12px; vertical-alignment: center; height: parent.height; }
+                            search := TextInput {
+                                x: 9px; width: parent.width - 18px; height: parent.height;
+                                color: root.fg; font-size: 12px; vertical-alignment: center; single-line: true; enabled: !root.confirming;
+                                accepted => { root.refresh(); keys.focus(); }
+                            }
+                        }
+                        Text { text: root.data.process-summary; color: root.muted; font-size: 10px; height: 16px; overflow: elide; }
+                        HorizontalLayout {
+                            height: 26px; spacing: 6px;
+                            Button { text: "Name"; fg: root.sort == "name" ? root.accent : root.muted; fill: root.bg; line: root.overlay; horizontal-stretch: 1; enabled: root.can-act; clicked => { root.sort = "name"; root.refresh(); } }
+                            Button { text: "PID"; fg: root.sort == "pid" ? root.accent : root.muted; fill: root.bg; line: root.overlay; width: 62px; enabled: root.can-act; clicked => { root.sort = "pid"; root.refresh(); } }
+                            Button { text: "CPU ↓"; fg: root.sort == "cpu" ? root.accent : root.muted; fill: root.bg; line: root.overlay; width: 68px; enabled: root.can-act; clicked => { root.sort = "cpu"; root.refresh(); } }
+                            Button { text: "Memory ↓"; fg: root.sort == "memory" ? root.accent : root.muted; fill: root.bg; line: root.overlay; width: 92px; enabled: root.can-act; clicked => { root.sort = "memory"; root.refresh(); } }
+                        }
+                        process-list := Flickable {
+                            vertical-stretch: 1;
+                            viewport-height: max(self.height, root.data.processes.length * 36px);
+                            for process[i] in root.data.processes: Rectangle {
+                                y: i * 36px; height: 35px; width: parent.width;
+                                border-radius: 3px;
+                                background: process.key == root.selection ? root.surface : row-touch.has-hover ? root.surface.with-alpha(0.5) : root.bg;
+                                border-width: process.key == root.selection ? 1px : 0px; border-color: root.accent;
+                                HorizontalLayout {
+                                    padding-left: 6px; padding-right: 6px; spacing: 6px;
+                                    Text { text: process.name; color: root.fg; font-size: 12px; overflow: elide; horizontal-stretch: 1; vertical-alignment: center; }
+                                    Text { text: process.pid; color: root.muted; font-size: 10px; width: 62px; horizontal-alignment: right; vertical-alignment: center; }
+                                    Text { text: process.cpu; color: root.fg; font-size: 12px; width: 68px; horizontal-alignment: right; vertical-alignment: center; }
+                                    Text { text: process.memory; color: root.muted; font-size: 12px; width: 86px; horizontal-alignment: right; vertical-alignment: center; }
+                                }
+                                row-touch := TouchArea { enabled: !root.confirming; clicked => { root.select(i); keys.focus(); } }
+                            }
+                            if root.data.processes.length == 0: Text { text: "No matching processes, or waiting for the first sample."; color: root.muted; font-size: 12px; wrap: word-wrap; width: parent.width; }
+                        }
+                        Text { text: "Memory = working set; shared pages are not additive."; color: root.muted; font-size: 10px; height: 16px; }
+                    }
+                }
+                Rectangle { height: 1px; background: root.overlay; }
+                Text { text: root.provider-error != "" ? root.provider-error : root.data.notice != "" ? root.data.notice : root.data.status; color: root.muted; font-size: 11px; wrap: word-wrap; height: 28px; }
+                HorizontalLayout {
+                    height: 30px; spacing: 10px;
+                    Button { text: "Open Task Manager"; fg: root.fg; fill: root.bg; line: root.overlay; enabled: root.can-act; clicked => { root.working = true; root.action("task-manager", root.tab == 0 ? "" : search.text, root.tab == 0 ? "cpu" : root.sort, root.selection); } }
+                    Button { text: root.tab == 1 ? "End task…" : "View all processes"; fg: root.fg; fill: root.bg; line: root.overlay; enabled: root.can-act && (root.tab == 0 || (root.selection != "" && root.selected-safe)); clicked => { if (root.tab == 0) { root.tab = 1; root.refresh(); } else { root.ask-end(); } } }
+                }
+                Text { text: "Windows host · WSL processes appear under vmmemWSL"; color: root.muted; font-size: 10px; height: 14px; overflow: elide; }
+            }
+        }
+        if root.confirming: Rectangle {
+            background: root.bg.with-alpha(0.96);
+            TouchArea { }
+            VerticalLayout {
+                padding: 28px; spacing: 14px; alignment: center;
+                Text { text: "End this process?"; color: root.fg; font-size: 20px; font-weight: 600; }
+                Text { text: root.target-name; color: root.accent; font-size: 14px; wrap: word-wrap; }
+                Text { text: "This forcibly stops the selected Windows process. Unsaved work may be lost.\n\nThe process identity is checked again before termination. No administrator elevation will be requested."; color: root.muted; font-size: 12px; wrap: word-wrap; }
+                HorizontalLayout {
+                    height: 32px; spacing: 12px;
+                    Button { text: "Cancel"; fg: root.fg; fill: root.bg; line: root.overlay; clicked => { root.confirming = false; root.target = ""; keys.focus(); } }
+                    Button { text: "End process"; fg: root.accent; fill: root.bg; line: root.accent; enabled: !root.busy && !root.working && root.target != ""; clicked => { root.finish-end(); } }
+                }
+            }
+        }
+    }
+}

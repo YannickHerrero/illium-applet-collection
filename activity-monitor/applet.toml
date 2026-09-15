@@ -1,0 +1,12 @@
+icon = "icon.svg"
+label = "{bar_label}"
+interval = "5s"
+command = [".\\activity-monitor.exe"]
+focusable = true
+popup = { width = 580, height = 650 }
+
+[settings]
+# Empty selects the first up physical Ethernet/Wi-Fi adapter, ordered by index.
+interface = ""
+# Windows PhysicalDrive number; this is NOT a sum of overlapping volumes.
+disk = 0
