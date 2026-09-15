@@ -1,0 +1,102 @@
+struct Quota { label: string, value: float, used: string, resets: string, reset-time: string, pace: string, pace-value: float, fresh: bool, ahead: bool }
+struct Data { message: string, updated: string, windows: [Quota], error: string }
+component Button inherits Rectangle {
+    in property <string> text;
+    in property <color> fg;
+    in property <color> fill;
+    in property <color> line;
+    in property <bool> enabled: true;
+    callback clicked();
+    height: 30px; border-radius: 3px;
+    border-width: 1px; border-color: line;
+    background: touch.has-hover && enabled ? line : fill;
+    opacity: enabled ? 1 : 0.5;
+    Text { text: root.text; color: root.fg; font-size: 12px; vertical-alignment: center; horizontal-alignment: center; }
+    touch := TouchArea { enabled: root.enabled; clicked => { root.clicked(); } }
+}
+export component View inherits Window {
+    no-frame: true;
+    in property <length> popup-width: 390px;
+    in property <length> popup-height: 420px;
+    width: popup-width; height: popup-height;
+    in property <color> bg: #1e1e2e;
+    in property <color> surface: #313244;
+    in property <color> overlay: #45475a;
+    in property <color> fg: #cdd6f4;
+    in property <color> muted: #a6adc8;
+    in property <color> accent: #cba6f7;
+    in property <Data> data;
+    in property <bool> busy: false;
+    in property <bool> open: false;
+    in property <string> provider-error;
+    callback action(string);
+    changed open => { if (open && !busy) { root.action("refresh"); } }
+    background: bg;
+    forward-focus: keys;
+    keys := FocusScope {
+        key-pressed(event) => {
+            if (event.text == "r" && !root.busy) { root.action("refresh"); return accept; }
+            return reject;
+        }
+        Rectangle {
+            border-width: 1px; border-color: root.accent;
+            VerticalLayout {
+                padding: 18px; spacing: 12px;
+                HorizontalLayout {
+                    height: 42px; spacing: 12px;
+                    Image { source: @image-url("icon.svg"); width: 30px; height: 30px; colorize: root.accent; }
+                    VerticalLayout {
+                        horizontal-stretch: 1; spacing: 3px;
+                        Text { text: "Claude"; color: root.fg; font-size: 19px; font-weight: 600; }
+                        Text { text: "ACCOUNT USAGE · CLAUDE CODE / WSL"; color: root.muted; font-size: 9px; }
+                    }
+                }
+                Rectangle { height: 1px; background: root.overlay; }
+                Flickable {
+                    vertical-stretch: 1;
+                    viewport-height: max(self.height, root.data.windows.length * 96px);
+                    VerticalLayout {
+                        alignment: start; spacing: 10px;
+                        for quota in root.data.windows: Rectangle {
+                            height: 86px;
+                            VerticalLayout {
+                                spacing: 7px;
+                                HorizontalLayout {
+                                    Text { text: quota.label; color: root.fg; font-size: 13px; font-weight: 600; horizontal-stretch: 1; }
+                                    Text { text: quota.used; color: quota.fresh ? root.accent : root.muted; font-size: 13px; font-weight: 600; }
+                                }
+                                Rectangle {
+                                    height: 5px; background: root.surface; border-radius: 2px;
+                                    Rectangle { x: 0px; y: 0px; width: parent.width * clamp(quota.value / 100, 0, 1); height: parent.height; background: quota.fresh ? root.accent : root.muted; opacity: quota.fresh ? 1 : 0.45; border-radius: 2px; }
+                                    Rectangle { visible: quota.fresh; x: (parent.width - 2px) * clamp(quota.pace-value / 100, 0, 1); width: 2px; height: 9px; y: -2px; background: root.fg; }
+                                }
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Text { text: quota.resets; color: root.muted; font-size: 10px; horizontal-stretch: 1; overflow: elide; }
+                                    Text { text: quota.pace; color: quota.ahead ? root.accent : root.muted; font-size: 10px; horizontal-alignment: right; }
+                                }
+                                Text { text: quota.reset-time; color: root.muted; font-size: 10px; }
+                            }
+                        }
+                        if root.data.windows.length == 0: Text {
+                            text: "No quota data yet.\nUse an active Claude Code session to publish its limits.";
+                            color: root.muted; font-size: 12px; wrap: word-wrap;
+                        }
+                    }
+                }
+                Rectangle { height: 1px; background: root.overlay; }
+                Text {
+                    text: root.provider-error != "" ? root.provider-error : root.data.error != "" ? root.data.error : root.data.message;
+                    color: root.muted; font-size: 11px; wrap: word-wrap; max-height: 32px;
+                }
+                Text { text: root.data.updated; color: root.muted; font-size: 10px; overflow: elide; }
+                HorizontalLayout {
+                    spacing: 10px; height: 30px;
+                    Button { text: root.busy ? "Reading…" : "Reload snapshot"; fg: root.fg; fill: root.bg; line: root.overlay; enabled: !root.busy; clicked => { root.action("refresh"); } }
+                    Button { text: "Open usage page"; fg: root.fg; fill: root.bg; line: root.overlay; enabled: !root.busy; clicked => { root.action("open"); } }
+                }
+                Text { text: "Tick = linear pace, not a forecast.  ~ = last known value."; color: root.muted; font-size: 9px; overflow: elide; }
+            }
+        }
+    }
+}
