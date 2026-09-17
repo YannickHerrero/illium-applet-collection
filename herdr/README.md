@@ -8,12 +8,13 @@ Inspired by [jankeesvw/omarchy-herdr](https://github.com/jankeesvw/omarchy-herdr
 
 The bar carries the number of running herdr servers, prefixed with `!` when at least one agent is waiting on you, and nothing when no server runs.
 
-The popup lists one card per session:
+The popup lists one card per **herdr workspace** of the running server (this applet assumes a single herdr session per machine):
 
-- its name (`default` reads **Shared session**, a numeric name reads **Workspace N**), in muted colour when its server is stopped
-- the projects open inside it, from the workspace labels; a stopped session shows the labels saved in its `session.json`, or **nothing saved**
-- the loudest state of its agents (**1 needs you**, **2 done**, **1 working**, **ready**) and their count
-- every agent with its terminal title and state, ordered needs you, done, working, ready
+- the workspace label as title, with its number and tab count underneath
+- the loudest state of its agents (**1 needs you**, **2 done**, **1 working**, **ready**, or **no agents**) and their count
+- every agent of that workspace with its terminal title and state, ordered needs you, done, working, ready
+
+A stopped session, if any, is one muted card named after it (`default` reads **Shared session**, a numeric name reads **Workspace N**), showing the labels saved in its `session.json` or **nothing saved**.
 
 States are herdr's own: `blocked` (**needs you**) means herdr recognised a question or approval on screen, `done` means work finished in a pane you have not focused since, `idle` is written **ready**. Those two attention states are drawn bold and washed in red or green; working uses the theme accent. A running server that does not answer its socket shows **no answer**.
 

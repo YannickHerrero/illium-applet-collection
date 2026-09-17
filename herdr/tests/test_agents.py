@@ -11,11 +11,12 @@ SCRIPT = HERE.parent / 'herdr-agents.sh'
 
 
 def snapshot(version, workspaces, agents):
+    """workspaces: list of labels; agents: (title, status, workspace index) tuples."""
     return {'id': 'cli:api:snapshot', 'result': {'snapshot': {
         'version': version,
-        'workspaces': [{'workspace_id': f'w{i}', 'label': label} for i, label in enumerate(workspaces)],
-        'agents': [{'pane_id': f'w0:p{i}', 'agent': 'claude', 'agent_status': status, 'terminal_title': title,
-                    'terminal_title_stripped': title} for i, (title, status) in enumerate(agents)]}}}
+        'workspaces': [{'workspace_id': f'w{i}', 'label': label, 'number': i + 1, 'tab_count': i + 1} for i, label in enumerate(workspaces)],
+        'agents': [{'pane_id': f'w{ws}:p{i}', 'workspace_id': f'w{ws}', 'agent': 'claude', 'agent_status': status, 'terminal_title': title,
+                    'terminal_title_stripped': title} for i, (title, status, ws) in enumerate(agents)]}}}
 
 
 class AgentsScriptTests(unittest.TestCase):
@@ -49,39 +50,37 @@ class AgentsScriptTests(unittest.TestCase):
     def write_snapshot(self, name, *args):
         (self.fixtures / f'snapshot-{name}.json').write_text(json.dumps(snapshot(*args), ensure_ascii=False))
 
-    def test_joins_sessions_snapshots_and_saved_layouts(self):
-        self.write_sessions(('9', False), ('5', True), ('default', True), ('3', True), ('7', False), ('bad name!', True))
-        self.write_snapshot('default', '0.8.0', ['checkout-service', 'design-tokens', 'checkout-service'],
-                            [('Token names for the new palette', 'idle'), ('◐ Rewrite the receipt formatter', 'working'), ('', 'working')])
-        self.write_snapshot('3', '0.8.0', ['billing-api'], [('Drop the legacy invoice table', 'blocked')])
-        self.write_snapshot('5', '0.8.0', ['docs-site'], [('Upgrade the search index', 'done'), ('π - anchors', 'done')])
+    def test_one_card_per_workspace_then_stopped_sessions(self):
+        self.write_sessions(('9', False), ('default', True), ('7', False), ('bad name!', True))
+        self.write_snapshot('default', '0.8.0', ['checkout-service', 'billing-api', 'docs-site', 'scratch'], [
+            ('Token names for the new palette', 'idle', 0), ('◐ Rewrite the receipt formatter', 'working', 0), ('', 'working', 0),
+            ('Drop the legacy invoice table', 'blocked', 1),
+            ('Upgrade the search index', 'done', 2), ('π - anchors', 'done', 2)])
         (self.home / '.config/herdr/sessions/7/session.json').write_text(json.dumps({'workspaces': [
             {'identity_cwd': str(self.home)}, {'custom_name': 'Named'}, {'identity_cwd': '/srv/api'}]}))
         data = self.run_script('refresh')
         self.assertEqual((data['ok'], data['error']), (True, ''))
-        self.assertEqual(data['title'], 'Herdr (3 servers, 6 agents)')
-        self.assertEqual(data['bar_label'], '!3')
-        sessions = {s['name']: s for s in data['sessions']}
-        self.assertEqual([s['name'] for s in data['sessions']], ['default', '3', '5', '7', '9'])
-        shared = sessions['default']
-        self.assertEqual((shared['display'], shared['running'], shared['is_default']), ('Shared session', True, True))
-        self.assertEqual((shared['summary'], shared['summary_state'], shared['agent_count']), ('2 working', 'working', '3 agents'))
-        self.assertEqual(shared['projects'], 'checkout-service  ·  design-tokens')
-        self.assertEqual([(a['title'], a['label']) for a in shared['agents']],
+        self.assertEqual(data['title'], 'Herdr (1 server, 6 agents)')
+        self.assertEqual(data['bar_label'], '!1')
+        cards = data['cards']
+        self.assertEqual([c['title'] for c in cards], ['checkout-service', 'billing-api', 'docs-site', 'scratch', 'Workspace 7', 'Workspace 9'])
+        first = cards[0]
+        self.assertEqual((first['subtitle'], first['attention'], first['summary'], first['agent_count'], first['active']),
+                         ('Workspace 1  ·  1 tab', 'working', '2 working', '3 agents', True))
+        self.assertEqual([(a['title'], a['label']) for a in first['agents']],
                          [('Rewrite the receipt formatter', 'working'), ('Token names for the new palette', 'ready')])
-        self.assertEqual((sessions['3']['display'], sessions['3']['summary'], sessions['3']['summary_state'], sessions['3']['agent_count']),
-                         ('Workspace 3', '1 needs you', 'blocked', '1 agent'))
-        self.assertEqual(sessions['3']['agents'][0]['label'], 'needs you')
-        self.assertEqual((sessions['5']['summary'], sessions['5']['summary_state']), ('2 done', 'done'))
-        self.assertEqual(sessions['5']['agents'][1]['title'], 'π - anchors')
-        self.assertEqual((sessions['7']['summary'], sessions['7']['summary_state'], sessions['7']['projects'], sessions['7']['agent_count']),
-                         ('stopped', 'stopped', 'Named  ·  api  ·  ~', ''))
-        self.assertEqual((sessions['9']['projects'], sessions['9']['agents']), ('nothing saved', []))
+        self.assertEqual((cards[1]['attention'], cards[1]['summary'], cards[1]['agent_count'], cards[1]['agents'][0]['label']),
+                         ('blocked', '1 needs you', '1 agent', 'needs you'))
+        self.assertEqual((cards[2]['attention'], cards[2]['summary'], cards[2]['agents'][1]['title']), ('done', '2 done', 'π - anchors'))
+        self.assertEqual((cards[3]['attention'], cards[3]['summary'], cards[3]['agent_count'], cards[3]['agents']), ('empty', 'no agents', '', []))
+        self.assertEqual((cards[4]['attention'], cards[4]['summary'], cards[4]['subtitle'], cards[4]['active'], cards[4]['agent_count']),
+                         ('stopped', 'stopped', 'Named  ·  api  ·  ~', False, ''))
+        self.assertEqual((cards[5]['subtitle'], cards[5]['agents']), ('nothing saved', []))
 
     def test_missing_herdr_is_reported_without_failing(self):
         self.write_sessions()
         data = self.run_script(without_herdr=True)
-        self.assertEqual((data['ok'], data['bar_label'], data['sessions']), (False, '', []))
+        self.assertEqual((data['ok'], data['bar_label'], data['cards']), (False, '', []))
         self.assertIn('herdr is not installed', data['error'])
 
     def test_no_sessions_gives_an_empty_bar_label(self):
@@ -91,17 +90,17 @@ class AgentsScriptTests(unittest.TestCase):
 
     def test_unanswering_server_does_not_take_the_list_down(self):
         self.write_sessions(('default', True), ('3', True))
-        self.write_snapshot('default', '0.8.0', [], [])
+        self.write_snapshot('default', '0.8.0', ['api'], [])
         data = self.run_script()
-        self.assertEqual([s['name'] for s in data['sessions']], ['default', '3'])
-        self.assertEqual((data['sessions'][0]['summary'], data['sessions'][0]['summary_state']), ('no agents', 'empty'))
-        self.assertEqual((data['sessions'][1]['summary'], data['sessions'][1]['summary_state'], data['sessions'][1]['agent_count']), ('no answer', 'unreachable', ''))
+        self.assertEqual([c['title'] for c in data['cards']], ['api', 'Workspace 3'])
+        self.assertEqual((data['cards'][0]['summary'], data['cards'][0]['attention']), ('no agents', 'empty'))
+        self.assertEqual((data['cards'][1]['summary'], data['cards'][1]['attention'], data['cards'][1]['active']), ('no answer', 'unreachable', False))
         self.assertEqual((data['bar_label'], data['title']), ('2', 'Herdr (2 servers, 0 agents)'))
 
     def test_unparseable_session_list_is_an_error(self):
         (self.fixtures / 'sessions.json').write_text('not json')
         data = self.run_script()
-        self.assertEqual((data['ok'], data['sessions']), (False, []))
+        self.assertEqual((data['ok'], data['cards']), (False, []))
 
 
 if __name__ == '__main__':

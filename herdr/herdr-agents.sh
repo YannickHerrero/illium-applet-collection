@@ -24,7 +24,7 @@ json_string() {
 }
 
 fail() {
-  printf '{"ok":false,"error":%s,"bar_label":"","title":"Herdr","sessions":[]}\n' "$(json_string "$1")"
+  printf '{"ok":false,"error":%s,"bar_label":"","title":"Herdr","cards":[]}\n' "$(json_string "$1")"
   exit 0
 }
 
@@ -126,6 +126,29 @@ main() {
     def display: if . == "default" then "Shared session"
                  elif test("^[0-9]{1,3}$") then "Workspace \(.)"
                  else . end;
+    def card_state($agents; $running; $answered):
+      ([$agents[] | .agent_status // "unknown"] | map(rank) | min // 4) as $loudest
+      | if $running | not then "stopped"
+        elif $answered | not then "unreachable"
+        elif $loudest == 0 then "blocked"
+        elif $loudest == 1 then "done"
+        elif $loudest == 2 then "working"
+        elif ($agents | length) == 0 then "empty"
+        else "idle" end;
+    def card_summary($agents; $state):
+      if $state == "stopped" then "stopped"
+      elif $state == "unreachable" then "no answer"
+      elif $state == "blocked" then "\([$agents[] | select(.agent_status == "blocked")] | length) needs you"
+      elif $state == "done" then "\([$agents[] | select(.agent_status == "done")] | length) done"
+      elif $state == "working" then "\([$agents[] | select(.agent_status == "working")] | length) working"
+      elif $state == "empty" then "no agents"
+      else "ready" end;
+    def agent_rows: map({title: ((.terminal_title_stripped // .terminal_title // "") | clean),
+                         status: (.agent_status // "unknown"),
+                         label: ((.agent_status // "unknown") | word)})
+                    | map(select(.title != ""))
+                    | sort_by(.status | rank)
+                    | .[0:$agentCap];
     [.sessions[]?
      | select(.name | type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"))
      | .name as $name
@@ -133,56 +156,52 @@ main() {
      | ($running and ($snapshots | has($name))) as $answered
      | (($snapshots[$name].result.snapshot) // {}) as $snap
      | ($snap.agents // []) as $agents
-     | ([$agents[] | .agent_status // "unknown"] | map(rank) | min // 4) as $loudest
-     | ([$agents[] | select(.agent_status == "blocked")] | length) as $blocked
-     | ([$agents[] | select(.agent_status == "done")] | length) as $done
-     | ([$agents[] | select(.agent_status == "working")] | length) as $working
-     | {
-         name: $name,
-         display: ($name | display),
-         running: $running,
-         is_default: (.default // false),
-         agent_total: ($agents | length),
-         blocked: $blocked,
-         done: $done,
-         working: $working,
-         agent_count: (if $answered then plural($agents | length; "agent") else "" end),
-         summary_state: (if $running | not then "stopped"
-                         elif $answered | not then "unreachable"
-                         elif $loudest == 0 then "blocked"
-                         elif $loudest == 1 then "done"
-                         elif $loudest == 2 then "working"
-                         elif ($agents | length) == 0 then "empty"
-                         else "idle" end),
-         summary: (if $running | not then "stopped"
-                   elif $answered | not then "no answer"
-                   elif $loudest == 0 then "\($blocked) needs you"
-                   elif $loudest == 1 then "\($done) done"
-                   elif $loudest == 2 then "\($working) working"
-                   elif ($agents | length) == 0 then "no agents"
-                   else "ready" end),
-         projects: ((if $running
-                     then (($snap.workspaces // []) | map(.label // "") | map(select(length > 0)) | unique)
-                     else ($saved[$name] // []) end)
-                    | if length == 0 then (if $running then "" else "nothing saved" end)
-                      else join("  ·  ") end),
-         agents: ($agents
-                  | map({title: ((.terminal_title_stripped // .terminal_title // "") | clean),
-                         status: (.agent_status // "unknown"),
-                         label: ((.agent_status // "unknown") | word)})
-                  | map(select(.title != ""))
-                  | sort_by(.status | rank)
-                  | .[0:$agentCap])
-       }]
-    | sort_by([(if .is_default then 0 else 1 end), (if .running then 0 else 1 end), (.name | ascii_downcase)])
-    | ([.[] | select(.running)] | length) as $servers
+     | if $answered then
+         # One card per herdr workspace, in herdr order; the session
+         # itself is not shown because this machine only ever runs one.
+         (($snap.workspaces // []) | sort_by(.number // 0) | to_entries[]
+          | .value as $ws | .key as $index
+          | ($ws.workspace_id // "") as $id
+          | ([$agents[] | select((.workspace_id // "") == $id)]) as $mine
+          | card_state($mine; true; true) as $state
+          | {
+              title: (if ($ws.label // "") != "" then $ws.label else "Workspace \($ws.number // ($index + 1))" end),
+              subtitle: ("Workspace \($ws.number // ($index + 1))"
+                         + (if ($ws.tab_count // 0) > 0 then "  ·  " + plural($ws.tab_count; "tab") else "" end)),
+              attention: $state,
+              summary: card_summary($mine; $state),
+              agent_count: (if ($mine | length) == 0 then "" else plural($mine | length; "agent") end),
+              active: true,
+              agents: ($mine | agent_rows),
+              order: [0, $index, ""],
+              agent_total: ($mine | length),
+              blocked: ([$mine[] | select(.agent_status == "blocked")] | length)
+            })
+       else
+         card_state([]; $running; $answered) as $state
+         | {
+             title: ($name | display),
+             subtitle: (if $running then ""
+                        else (($saved[$name] // []) | if length == 0 then "nothing saved" else join("  ·  ") end) end),
+             attention: $state,
+             summary: card_summary([]; $state),
+             agent_count: "",
+             active: false,
+             agents: [],
+             order: [(if $running then 1 else 2 end), 0, ($name | ascii_downcase)],
+             agent_total: 0,
+             blocked: 0
+           }
+       end]
+    | sort_by(.order)
+    | (($snapshots | length) + ([.[] | select(.attention == "unreachable")] | length)) as $servers
     | ([.[] | .agent_total] | add // 0) as $agents
     | ([.[] | .blocked] | add // 0) as $blocked
     | {ok: true,
        error: "",
        bar_label: (if $servers == 0 then "" elif $blocked > 0 then "!\($servers)" else "\($servers)" end),
        title: "Herdr (\(plural($servers; "server")), \(plural($agents; "agent")))",
-       sessions: (map(del(.agent_total, .blocked, .done, .working)))}
+       cards: (map(del(.order, .agent_total, .blocked)))}
   ' 2>/dev/null || fail "unexpected output from herdr"
 }
 

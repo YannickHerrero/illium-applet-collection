@@ -1,6 +1,6 @@
 struct Agent { title: string, status: string, label: string }
-struct Session { name: string, display: string, running: bool, is-default: bool, agent-count: string, summary-state: string, summary: string, projects: string, agents: [Agent] }
-struct Data { ok: bool, error: string, bar-label: string, title: string, sessions: [Session] }
+struct Card { title: string, subtitle: string, attention: string, summary: string, agent-count: string, active: bool, agents: [Agent] }
+struct Data { ok: bool, error: string, bar-label: string, title: string, cards: [Card] }
 
 export component View inherits Window {
     no-frame: true;
@@ -32,8 +32,8 @@ export component View inherits Window {
         return root.muted;
     }
     pure function loud(state: string) -> bool { return state == "blocked" || state == "done"; }
-    pure function session-height(session: Session) -> length {
-        return 58px + (session.projects != "" ? 22px : 0px) + session.agents.length * 30px;
+    pure function card-height(card: Card) -> length {
+        return 58px + (card.subtitle != "" ? 22px : 0px) + card.agents.length * 30px;
     }
 
     // Agent states are what the popup is opened for, so they are refreshed
@@ -53,25 +53,25 @@ export component View inherits Window {
                 viewport-height: max(self.height, list.preferred-height);
                 list := VerticalLayout {
                     alignment: start; spacing: 10px;
-                    for session in root.data.sessions: Rectangle {
-                        height: root.session-height(session);
-                        opacity: session.running ? 1 : 0.55;
+                    for card in root.data.cards: Rectangle {
+                        height: root.card-height(card);
+                        opacity: card.active ? 1 : 0.55;
                         HorizontalLayout {
                             spacing: 12px;
                             Rectangle {
                                 width: 10px;
-                                Rectangle { y: 8px; width: 10px; height: 10px; border-radius: 5px; background: root.state-color(session.summary-state); }
+                                Rectangle { y: 8px; width: 10px; height: 10px; border-radius: 5px; background: root.state-color(card.attention); }
                             }
                             VerticalLayout {
                                 horizontal-stretch: 1; spacing: 4px; alignment: start;
                                 HorizontalLayout {
                                     height: 26px; spacing: 10px;
-                                    Text { text: session.display; color: root.fg; font-size: 16px; font-weight: 600; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
-                                    Text { text: session.summary; color: session.running ? root.state-color(session.summary-state) : root.muted; font-size: 13px; font-weight: root.loud(session.summary-state) ? 600 : 400; vertical-alignment: center; }
-                                    Text { text: session.agent-count; color: root.muted; font-size: 13px; vertical-alignment: center; visible: session.agent-count != ""; }
+                                    Text { text: card.title; color: root.fg; font-size: 16px; font-weight: 600; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                                    Text { text: card.summary; color: card.active ? root.state-color(card.attention) : root.muted; font-size: 13px; font-weight: root.loud(card.attention) ? 600 : 400; vertical-alignment: center; }
+                                    Text { text: card.agent-count; color: root.muted; font-size: 13px; vertical-alignment: center; visible: card.agent-count != ""; }
                                 }
-                                if session.projects != "": Text { text: session.projects; color: root.muted; font-size: 13px; height: 20px; overflow: elide; }
-                                for agent in session.agents: Rectangle {
+                                if card.subtitle != "": Text { text: card.subtitle; color: root.muted; font-size: 13px; height: 20px; overflow: elide; }
+                                for agent in card.agents: Rectangle {
                                     height: 28px; border-radius: 4px;
                                     background: root.loud(agent.status) ? root.state-color(agent.status).with-alpha(0.12) : transparent;
                                     HorizontalLayout {
@@ -84,7 +84,7 @@ export component View inherits Window {
                             }
                         }
                     }
-                    if root.data.sessions.length == 0 && root.data.ok: Text { text: "No herdr session.\nStart herdr in WSL to see its agents here."; color: root.muted; font-size: 12px; wrap: word-wrap; }
+                    if root.data.cards.length == 0 && root.data.ok: Text { text: "No herdr session.\nStart herdr in WSL to see its agents here."; color: root.muted; font-size: 12px; wrap: word-wrap; }
                     if !root.data.ok: Text { text: root.data.error != "" ? root.data.error : "herdr is unreachable"; color: root.alert; font-size: 12px; wrap: word-wrap; }
                 }
             }

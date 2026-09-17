@@ -20,30 +20,30 @@ def agent(title, status):
     return {'title': title, 'status': status, 'label': label}
 
 
-def session(name, display, state, summary, count, projects, agents, running=True):
-    return {'name': name, 'display': display, 'running': running, 'is-default': name == 'default', 'agent-count': count,
-            'summary-state': state, 'summary': summary, 'projects': projects, 'agents': agents}
+def card(title, subtitle, state, summary, count, agents, active=True):
+    return {'title': title, 'subtitle': subtitle, 'attention': state, 'summary': summary, 'agent-count': count, 'active': active, 'agents': agents}
 
 
-sessions = [
-    session('default', 'Shared session', 'working', '1 working', '2 agents', 'checkout-service  ·  design-tokens',
-            [agent('Rewrite the receipt formatter', 'working'), agent('Token names for the new palette', 'idle')]),
-    session('3', 'Workspace 3', 'blocked', '1 needs you', '1 agent', 'billing-api',
-            [agent('Drop the legacy invoice table before the migration lands', 'blocked')]),
-    session('5', 'Workspace 5', 'done', '2 done', '2 agents', 'docs-site',
-            [agent('Upgrade the search index', 'done'), agent('Fix the broken anchor links', 'done')]),
-    session('9', 'Workspace 9', 'stopped', 'stopped', '', 'nothing saved', [], running=False),
+cards = [
+    card('checkout-service', 'Workspace 1  ·  2 tabs', 'working', '1 working', '2 agents',
+         [agent('Rewrite the receipt formatter', 'working'), agent('Token names for the new palette', 'idle')]),
+    card('billing-api', 'Workspace 2  ·  1 tab', 'blocked', '1 needs you', '1 agent',
+         [agent('Drop the legacy invoice table before the migration lands', 'blocked')]),
+    card('docs-site', 'Workspace 3  ·  1 tab', 'done', '2 done', '2 agents',
+         [agent('Upgrade the search index', 'done'), agent('Fix the broken anchor links', 'done')]),
+    card('scratch', 'Workspace 4  ·  1 tab', 'empty', 'no agents', '', []),
+    card('Workspace 9', 'nothing saved', 'stopped', 'stopped', '', [], active=False),
 ]
-data = {'ok': True, 'error': '', 'bar-label': '!3', 'title': 'Herdr (3 servers, 5 agents)', 'sessions': sessions}
-many = dict(data, title='Herdr (1 server, 14 agents)', sessions=[session('default', 'Shared session', 'idle', 'ready', '14 agents', 'winarchy',
+data = {'ok': True, 'error': '', 'bar-label': '!1', 'title': 'Herdr (1 server, 5 agents)', 'cards': cards}
+many = dict(data, title='Herdr (1 server, 14 agents)', cards=[card('winarchy', 'Workspace 1  ·  6 tabs', 'idle', 'ready', '14 agents',
             [agent(f'Long running task number {i} with a title that keeps going past the column', 'idle') for i in range(14)])])
 light = {'bg': '#eff1f5', 'surface': '#e6e9ef', 'overlay': '#ccd0da', 'fg': '#4c4f69', 'muted': '#6c6f85', 'accent': '#8839ef'}
 for name, values in [
     ('dark', {'data': data}),
     ('light', dict(light, data=data)),
     ('many', {'data': many}),
-    ('empty', {'data': dict(data, title='Herdr (0 servers, 0 agents)', sessions=[])}),
-    ('unreachable', {'data': {'ok': False, 'error': 'herdr is not installed in WSL', 'bar-label': '', 'title': 'Herdr', 'sessions': []}}),
+    ('empty', {'data': dict(data, title='Herdr (0 servers, 0 agents)', cards=[])}),
+    ('unreachable', {'data': {'ok': False, 'error': 'herdr is not installed in WSL', 'bar-label': '', 'title': 'Herdr', 'cards': []}}),
 ]:
     with tempfile.TemporaryDirectory() as directory:
         fixture = Path(directory) / 'data.json'
