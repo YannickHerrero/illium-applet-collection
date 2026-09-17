@@ -70,7 +70,9 @@ def query(claude, timeout=TIMEOUT):
     with tempfile.TemporaryDirectory(prefix='winarchy-quota-') as directory:
         process = subprocess.Popen(command, cwd=directory, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                    stderr=subprocess.DEVNULL, start_new_session=True,
-                                   env={**os.environ, 'DISABLE_AUTOUPDATER': '1', 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC': '1'})
+                                   # CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC must stay unset: it also
+                                   # stops the usage request, leaving only a stale interactive cache.
+                                   env={**os.environ, 'DISABLE_AUTOUPDATER': '1'})
         reader = selectors.DefaultSelector()
         reader.register(process.stdout, selectors.EVENT_READ)
         deadline = time.monotonic() + timeout
