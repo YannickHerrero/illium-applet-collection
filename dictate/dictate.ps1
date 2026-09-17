@@ -41,10 +41,14 @@ try {
     if ($Action -eq 'load' -or $Action -eq 'unload') {
         $code = Invoke-Resident $exe "--$Action"
         if ($code -ne 0) { $failure = "Request $Action failed (exit $code)" }
-        # Loading takes a few seconds; the status below reflects progress so far.
-        Start-Sleep -Milliseconds 500
     } elseif ($Action -notin @('', 'refresh')) { throw "Unknown dictate action: $Action" }
     $status = Invoke-Resident $exe '--status'
+    # Loading takes a few seconds; wait for it so the popup shows the outcome, not the transition.
+    $expected = if ($Action -eq 'load') { 0 } elseif ($Action -eq 'unload') { 2 } else { $status }
+    for ($i = 0; $i -lt 16 -and $status -ne $expected -and $status -in @(0, 2); $i++) {
+        Start-Sleep -Milliseconds 500
+        $status = Invoke-Resident $exe '--status'
+    }
     $data = Build-Data $status (Get-ResidentMemoryMb) $failure
 } catch {
     $data = Build-Data 1 0 $_.Exception.Message
