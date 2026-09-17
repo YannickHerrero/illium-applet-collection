@@ -1,0 +1,62 @@
+struct Data { state: string, bar-label: string, title: string, detail: string, error: string }
+component Button inherits Rectangle {
+    in property <string> text;
+    in property <color> fg;
+    in property <color> fill;
+    in property <color> line;
+    in property <bool> enabled: true;
+    callback clicked();
+    height: 32px; border-radius: 3px;
+    border-width: 1px; border-color: line;
+    background: touch.has-hover && enabled ? line : fill;
+    opacity: enabled ? 1 : 0.5;
+    Text { text: root.text; color: root.fg; font-size: 12px; vertical-alignment: center; horizontal-alignment: center; }
+    touch := TouchArea { enabled: root.enabled; clicked => { root.clicked(); } }
+}
+export component View inherits Window {
+    no-frame: true;
+    in property <length> popup-width: 340px;
+    in property <length> popup-height: 210px;
+    width: popup-width; height: popup-height;
+    in property <color> bg: #1e1e2e;
+    in property <color> surface: #313244;
+    in property <color> overlay: #45475a;
+    in property <color> fg: #cdd6f4;
+    in property <color> muted: #a6adc8;
+    in property <color> accent: #cba6f7;
+    in property <Data> data;
+    in property <bool> busy: false;
+    in property <bool> open: false;
+    in property <string> provider-error;
+    callback action(string);
+    changed open => { if (open && !busy) { root.action("refresh"); } }
+    property <bool> loaded: root.data.state == "loaded";
+    property <bool> running: root.data.state != "stopped";
+    background: bg;
+    Rectangle {
+        border-width: 1px; border-color: root.accent;
+        VerticalLayout {
+            padding: 18px; spacing: 12px;
+            HorizontalLayout {
+                spacing: 12px; height: 30px;
+                Image { source: @image-url("icon.svg"); width: 24px; height: 24px; colorize: root.loaded ? root.accent : root.muted; }
+                VerticalLayout {
+                    horizontal-stretch: 1; spacing: 2px;
+                    Text { text: "Dictation"; color: root.fg; font-size: 16px; font-weight: 600; }
+                    Text { text: "HOLD-TO-TALK · PARAKEET V3"; color: root.muted; font-size: 9px; }
+                }
+                Rectangle { width: 10px; Rectangle { y: 10px; width: 10px; height: 10px; border-radius: 5px; background: root.loaded ? root.accent : root.muted; } }
+            }
+            Rectangle { height: 1px; background: root.overlay; }
+            Text { text: root.data.title != "" ? root.data.title : "Waiting for the resident…"; color: root.fg; font-size: 13px; font-weight: 600; }
+            Text { text: root.data.detail; color: root.muted; font-size: 11px; wrap: word-wrap; vertical-stretch: 1; }
+            if root.provider-error != "" || root.data.error != "": Text { text: root.provider-error != "" ? root.provider-error : root.data.error; color: #f38ba8; font-size: 11px; wrap: word-wrap; max-height: 30px; }
+            Button {
+                text: root.busy ? "Working…" : root.loaded ? "Unload model" : "Load model";
+                fg: root.fg; fill: root.bg; line: root.overlay;
+                enabled: !root.busy && root.running;
+                clicked => { root.action(root.loaded ? "unload" : "load"); }
+            }
+        }
+    }
+}

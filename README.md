@@ -22,6 +22,14 @@ It backs up `bar.toml`, replaces only CPU/memory entries and leaves Claude's rel
 python3 -B herdr/install.py --windows-home /mnt/c/Users/<WindowsUser>
 ```
 
+## Dictation
+
+[`dictate/`](dictate/README.md) is a bar switch for the speech model behind Winarchy's hold-to-talk dictation (`winarchy-dictate.exe`): it shows whether the model is in memory and loads or unloads it, so its roughly 700 MB only stay resident during sessions where you dictate. PowerShell provider, no data of yours is read.
+
+```sh
+python3 -B dictate/install.py --windows-home /mnt/c/Users/<WindowsUser>
+```
+
 ## Claude usage
 
 `claude-usage/` displays Claude Code's **account quota**, not context-window fullness or locally estimated token costs. The initial data source is the official Claude Code statusline JSON (`rate_limits.five_hour` and `rate_limits.seven_day`).
@@ -44,7 +52,7 @@ This preserves the current statusline, backs up settings, and adds the applet to
 
 ## Development
 
-Claude Usage uses Python 3.11+ (standard library) for its WSL relay/setup and Windows PowerShell 5.1 for its provider. Activity Monitor uses Rust 1.89+ to build a standalone Windows executable, with Python only for installation. Herdr uses bash 5 and jq in WSL. All use Slint 1.12.1 views. Keep all generated data and private settings out of Git.
+Claude Usage uses Python 3.11+ (standard library) for its WSL relay/setup and Windows PowerShell 5.1 for its provider. Activity Monitor uses Rust 1.89+ to build a standalone Windows executable, with Python only for installation. Herdr uses bash 5 and jq in WSL; Dictation uses Windows PowerShell 5.1. All use Slint 1.12.1 views. Keep all generated data and private settings out of Git.
 
 Atomic commits must use `YannickHerrero <yannick.herrero@proton.me>`. No remote or publication is configured automatically.
 
