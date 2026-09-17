@@ -23,19 +23,19 @@ class InstallTests(unittest.TestCase):
     def install(self):
         return installer.install(self.config, self.home)
 
-    def test_places_the_applet_after_activity_monitor(self):
+    def test_places_the_applet_before_wifi(self):
         result = self.install()
         text = (self.config / 'bar.toml').read_bytes()
-        self.assertEqual(tomllib.loads(text.decode())['right'], ['claude-usage', 'separator', 'activity-monitor', 'dictate', 'separator', 'wifi'])
+        self.assertEqual(tomllib.loads(text.decode())['right'], ['claude-usage', 'separator', 'activity-monitor', 'separator', 'dictate', 'wifi'])
         self.assertIn(b'# keep ] me\r\n', text)
         self.assertEqual((Path(result['backup']) / 'bar.toml').read_bytes(), self.bar)
         for name in installer.FILES:
             self.assertTrue((Path(result['applet']) / name).is_file())
         self.assertEqual(list(self.config.parent.glob('.dictate-install-*')), [])
 
-    def test_appends_without_activity_monitor(self):
-        changed = tomllib.loads(installer.patched_bar(b'right = ["wifi", "battery"]\n').decode())
-        self.assertEqual(changed['right'], ['wifi', 'battery', 'dictate'])
+    def test_appends_without_wifi(self):
+        changed = tomllib.loads(installer.patched_bar(b'right = ["volume", "battery"]\n').decode())
+        self.assertEqual(changed['right'], ['volume', 'battery', 'dictate'])
 
     def test_refuses_existing_or_multiline(self):
         self.install()

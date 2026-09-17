@@ -16,7 +16,8 @@ NAME = 'dictate'
 
 
 def patched_bar(raw):
-    """Places the applet after activity-monitor when present, else at the end of `right`."""
+    """Places the applet before wifi when present, else at the end of `right`: with the
+    hardware indicators, right of the separator that closes the monitoring group."""
     text = raw.decode('utf-8-sig')
     data = tomllib.loads(text)
     modules = data.get('right')
@@ -27,7 +28,7 @@ def patched_bar(raw):
     matches = list(re.finditer(r'(?m)^right[ \t]*=[ \t]*\[[^\]\n]*\]', text))
     if len(matches) != 1:
         raise ValueError('Automatic installation requires a single-line right array; configure a multiline bar manually')
-    position = modules.index('activity-monitor') + 1 if 'activity-monitor' in modules else len(modules)
+    position = modules.index('wifi') if 'wifi' in modules else len(modules)
     updated = modules[:position] + [NAME] + modules[position:]
     match = matches[0]
     result = text[:match.start()] + 'right = ' + json.dumps(updated) + text[match.end():]

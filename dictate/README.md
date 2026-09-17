@@ -25,7 +25,7 @@ cd ~/dev/winarchy-applet-collection
 python3 -B dictate/install.py --windows-home /mnt/c/Users/<WindowsUser>
 ```
 
-The installer refuses to overwrite an existing installation, backs up `bar.toml` under `~/.local/state/winarchy-applet-collection/backups/`, copies the applet to Windows `~/.config/winarchy/applets/dictate/` and inserts `dictate` right after `activity-monitor` in the bar's `right` array (at its end when that module is absent). Pass `--config-home` for a `WINARCHY_CONFIG_HOME` override. To remove it, delete `dictate` from the bar and remove the applet directory.
+The installer refuses to overwrite an existing installation, backs up `bar.toml` under `~/.local/state/winarchy-applet-collection/backups/`, copies the applet to Windows `~/.config/winarchy/applets/dictate/` and inserts `dictate` right before `wifi` in the bar's `right` array, with the hardware indicators (at its end when that module is absent). Pass `--config-home` for a `WINARCHY_CONFIG_HOME` override. To remove it, delete `dictate` from the bar and remove the applet directory.
 
 ## Tests
 
