@@ -1,0 +1,13 @@
+#!/bin/bash
+# Test double for the herdr CLI: answers from fixture files under $FAKE_HERDR_DIR.
+set -euo pipefail
+session=default
+if [[ ${1-} == --session ]]; then session=$2; shift 2; fi
+case "$*" in
+  "session list --json") cat "$FAKE_HERDR_DIR/sessions.json" ;;
+  "api snapshot")
+    file="$FAKE_HERDR_DIR/snapshot-$session.json"
+    [[ -f $file ]] || exit 1
+    cat "$file" ;;
+  *) echo "unexpected herdr invocation: $*" >&2; exit 2 ;;
+esac
