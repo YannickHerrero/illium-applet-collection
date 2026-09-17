@@ -14,6 +14,14 @@ python3 activity-monitor/install.py --config /mnt/c/Users/<WindowsUser>/.config/
 
 It backs up `bar.toml`, replaces only CPU/memory entries and leaves Claude's relay/settings alone. See its README for precise metric scopes, measured startup overhead and safe rollback instructions.
 
+## Herdr
+
+[`herdr/`](herdr/README.md) shows the [herdr](https://herdr.dev) servers running in WSL and the agents inside them: which one needs an answer, which one finished unseen, which ones are working. Read-only: no session is focused, stopped or deleted from the popup. A bash script in WSL joins `herdr session list` and one `api snapshot` per server; Winarchy runs it through `wsl.exe`.
+
+```sh
+python3 -B herdr/install.py --windows-home /mnt/c/Users/<WindowsUser>
+```
+
 ## Claude usage
 
 `claude-usage/` displays Claude Code's **account quota**, not context-window fullness or locally estimated token costs. The initial data source is the official Claude Code statusline JSON (`rate_limits.five_hour` and `rate_limits.seven_day`).
@@ -36,7 +44,7 @@ This preserves the current statusline, backs up settings, and adds the applet to
 
 ## Development
 
-Claude Usage uses Python 3.11+ (standard library) for its WSL relay/setup and Windows PowerShell 5.1 for its provider. Activity Monitor uses Rust 1.89+ to build a standalone Windows executable, with Python only for installation. Both use Slint 1.12.1 views. Keep all generated data and private settings out of Git.
+Claude Usage uses Python 3.11+ (standard library) for its WSL relay/setup and Windows PowerShell 5.1 for its provider. Activity Monitor uses Rust 1.89+ to build a standalone Windows executable, with Python only for installation. Herdr uses bash 5 and jq in WSL. All use Slint 1.12.1 views. Keep all generated data and private settings out of Git.
 
 Atomic commits must use `YannickHerrero <yannick.herrero@proton.me>`. No remote or publication is configured automatically.
 
