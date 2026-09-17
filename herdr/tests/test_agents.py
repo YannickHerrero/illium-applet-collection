@@ -61,7 +61,7 @@ class AgentsScriptTests(unittest.TestCase):
         data = self.run_script('refresh')
         self.assertEqual((data['ok'], data['error']), (True, ''))
         self.assertEqual(data['title'], 'Herdr (1 server, 6 agents)')
-        self.assertEqual(data['bar_label'], '!1')
+        self.assertEqual(data['bar_label'], '1')
         cards = data['cards']
         self.assertEqual([c['title'] for c in cards], ['checkout-service', 'billing-api', 'docs-site', 'scratch', 'Workspace 7', 'Workspace 9'])
         first = cards[0]
@@ -95,7 +95,7 @@ class AgentsScriptTests(unittest.TestCase):
         self.assertEqual([c['title'] for c in data['cards']], ['api', 'Workspace 3'])
         self.assertEqual((data['cards'][0]['summary'], data['cards'][0]['attention']), ('no agents', 'empty'))
         self.assertEqual((data['cards'][1]['summary'], data['cards'][1]['attention'], data['cards'][1]['active']), ('no answer', 'unreachable', False))
-        self.assertEqual((data['bar_label'], data['title']), ('2', 'Herdr (2 servers, 0 agents)'))
+        self.assertEqual((data['bar_label'], data['title']), ('0', 'Herdr (2 servers, 0 agents)'))
 
     def test_unparseable_session_list_is_an_error(self):
         (self.fixtures / 'sessions.json').write_text('not json')

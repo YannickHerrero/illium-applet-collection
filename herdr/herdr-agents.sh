@@ -199,7 +199,7 @@ main() {
     | ([.[] | .blocked] | add // 0) as $blocked
     | {ok: true,
        error: "",
-       bar_label: (if $servers == 0 then "" elif $blocked > 0 then "!\($servers)" else "\($servers)" end),
+       bar_label: (if $servers == 0 then "" else "\($blocked)" end),
        title: "Herdr (\(plural($servers; "server")), \(plural($agents; "agent")))",
        cards: (map(del(.order, .agent_total, .blocked)))}
   ' 2>/dev/null || fail "unexpected output from herdr"

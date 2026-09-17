@@ -6,7 +6,7 @@ Inspired by [jankeesvw/omarchy-herdr](https://github.com/jankeesvw/omarchy-herdr
 
 ## What it shows
 
-The bar carries the number of running herdr servers, prefixed with `!` when at least one agent is waiting on you, and nothing when no server runs.
+The bar carries the number of agents waiting on you: `0` means everything is fine, `1` means one agent needs an answer. It is empty when no server runs.
 
 The popup lists one card per **herdr workspace** of the running server (this applet assumes a single herdr session per machine):
 
