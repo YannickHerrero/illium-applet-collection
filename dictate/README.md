@@ -4,7 +4,7 @@ A bar switch for the model behind [hold-to-talk dictation](https://github.com/Ya
 
 ## What it shows
 
-The bar shows the microphone icon, with `on` beside it while the model is loaded. The popup states one of:
+The bar shows a microphone while the model is loaded and a crossed-out microphone otherwise (the provider picks the icon file, which needs Winarchy with placeholder support in the manifest's `icon`). The popup states one of:
 
 - **Model in memory**: holding the dictate key records at once; the resident's working set is shown.
 - **Model unloaded**: the key still works, the first press loads the model first (about 3 s).

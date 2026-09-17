@@ -1,5 +1,5 @@
-icon = "icon.svg"
-label = "{bar_label}"
+# The provider names the icon: icon.svg with the model in memory, icon-off.svg otherwise.
+icon = "{icon}"
 interval = "30s"
 popup = { width = 340, height = 210 }
 

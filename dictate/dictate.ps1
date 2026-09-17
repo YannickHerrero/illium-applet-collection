@@ -21,7 +21,7 @@ function Build-Data([int]$exitCode, [int]$memoryMb, [string]$failure) {
     $state = switch ($exitCode) { 0 { 'loaded' } 2 { 'idle' } default { 'stopped' } }
     $data = [ordered]@{
         state = $state
-        bar_label = $(if ($state -eq 'loaded') { 'on' } else { '' })
+        icon = $(if ($state -eq 'loaded') { 'icon.svg' } else { 'icon-off.svg' })
         title = switch ($state) { 'loaded' { 'Model in memory' } 'idle' { 'Model unloaded' } default { 'Resident not running' } }
         detail = switch ($state) {
             'loaded' { "Ready: holding the dictate key records at once. About $memoryMb MB of RAM." }

@@ -1,4 +1,4 @@
-struct Data { state: string, bar-label: string, title: string, detail: string, error: string }
+struct Data { state: string, icon: string, title: string, detail: string, error: string }
 component Button inherits Rectangle {
     in property <string> text;
     in property <color> fg;
@@ -39,7 +39,7 @@ export component View inherits Window {
             padding: 18px; spacing: 12px;
             HorizontalLayout {
                 spacing: 12px; height: 30px;
-                Image { source: @image-url("icon.svg"); width: 24px; height: 24px; colorize: root.loaded ? root.accent : root.muted; }
+                Image { source: root.loaded ? @image-url("icon.svg") : @image-url("icon-off.svg"); width: 24px; height: 24px; colorize: root.loaded ? root.accent : root.muted; }
                 VerticalLayout {
                     horizontal-stretch: 1; spacing: 2px;
                     Text { text: "Dictation"; color: root.fg; font-size: 16px; font-weight: 600; }

@@ -11,7 +11,7 @@ import tempfile
 import tomllib
 
 ROOT = Path(__file__).resolve().parent
-FILES = ('applet.toml', 'view.slint', 'icon.svg', 'dictate.ps1', 'README.md')
+FILES = ('applet.toml', 'view.slint', 'icon.svg', 'icon-off.svg', 'dictate.ps1', 'README.md')
 NAME = 'dictate'
 
 

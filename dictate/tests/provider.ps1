@@ -6,12 +6,13 @@ function Assert-Equal($actual, $expected, $what) {
 }
 $loaded = Build-Data 0 731 ''
 Assert-Equal $loaded.state 'loaded' 'loaded state'
-Assert-Equal $loaded.bar_label 'on' 'loaded label'
+Assert-Equal $loaded.icon 'icon.svg' 'loaded icon'
 if ($loaded.detail -notmatch '731 MB') { throw 'loaded detail lacks memory' }
 $idle = Build-Data 2 21 ''
 Assert-Equal $idle.state 'idle' 'idle state'
-Assert-Equal $idle.bar_label '' 'idle label'
+Assert-Equal $idle.icon 'icon-off.svg' 'idle icon'
 $stopped = Build-Data 1 0 'boom'
 Assert-Equal $stopped.state 'stopped' 'stopped state'
 Assert-Equal $stopped.error 'boom' 'error passthrough'
+Assert-Equal $stopped.icon 'icon-off.svg' 'stopped icon'
 Write-Output 'dictate provider fixtures OK'
