@@ -1,0 +1,9 @@
+icon = "icon.svg"
+label = "{bar_label}"
+interval = "15s"
+# The installer replaces this with the WSL distribution and the absolute WSL
+# path of the copied script; Winarchy appends the view's action, which the
+# script ignores.
+command = ["wsl.exe", "-d", "Debian", "--", "bash", "herdr-agents.sh"]
+focusable = false
+popup = { width = 430, height = 560 }

@@ -1,0 +1,98 @@
+struct Agent { title: string, status: string, label: string }
+struct Session { name: string, display: string, running: bool, is-default: bool, agent-count: string, summary-state: string, summary: string, projects: string, agents: [Agent] }
+struct Data { ok: bool, error: string, bar-label: string, title: string, sessions: [Session] }
+
+export component View inherits Window {
+    no-frame: true;
+    in property <length> popup-width: 430px;
+    in property <length> popup-height: 560px;
+    width: popup-width; height: popup-height;
+    in property <color> bg: #1e1e2e;
+    in property <color> surface: #313244;
+    in property <color> overlay: #45475a;
+    in property <color> fg: #cdd6f4;
+    in property <color> muted: #a6adc8;
+    in property <color> accent: #cba6f7;
+    in property <Data> data;
+    in property <bool> busy: false;
+    in property <bool> open: false;
+    in property <string> provider-error;
+    callback action(string);
+
+    // The theme exposes no red or green; the attention colours follow only
+    // the background's lightness.
+    property <bool> light-theme: root.bg.to-hsv().value > 0.5;
+    property <color> alert: light-theme ? #d20f39 : #f38ba8;
+    property <color> success: light-theme ? #40a02b : #a6e3a1;
+
+    pure function state-color(state: string) -> color {
+        if (state == "blocked") { return root.alert; }
+        if (state == "done") { return root.success; }
+        if (state == "working") { return root.accent; }
+        return root.muted;
+    }
+    pure function loud(state: string) -> bool { return state == "blocked" || state == "done"; }
+    pure function session-height(session: Session) -> length {
+        return 58px + (session.projects != "" ? 22px : 0px) + session.agents.length * 30px;
+    }
+
+    // Agent states are what the popup is opened for, so they are refreshed
+    // faster while it is visible than the manifest interval used while closed.
+    changed open => { if (open && !busy) { root.action("refresh"); } }
+    Timer { interval: 3s; running: root.open; triggered => { if (!root.busy) { root.action("refresh"); } } }
+
+    background: bg;
+    Rectangle {
+        border-width: 1px; border-color: root.accent;
+        VerticalLayout {
+            padding: 18px; spacing: 12px;
+            Text { text: root.data.title != "" ? root.data.title : "Herdr"; color: root.fg; font-size: 15px; font-weight: 600; height: 22px; }
+            Rectangle { height: 1px; background: root.overlay; }
+            Flickable {
+                vertical-stretch: 1;
+                viewport-height: max(self.height, list.preferred-height);
+                list := VerticalLayout {
+                    alignment: start; spacing: 10px;
+                    for session in root.data.sessions: Rectangle {
+                        height: root.session-height(session);
+                        opacity: session.running ? 1 : 0.55;
+                        HorizontalLayout {
+                            spacing: 12px;
+                            Rectangle {
+                                width: 10px;
+                                Rectangle { y: 8px; width: 10px; height: 10px; border-radius: 5px; background: root.state-color(session.summary-state); }
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1; spacing: 4px; alignment: start;
+                                HorizontalLayout {
+                                    height: 26px; spacing: 10px;
+                                    Text { text: session.display; color: root.fg; font-size: 16px; font-weight: 600; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                                    Text { text: session.summary; color: session.running ? root.state-color(session.summary-state) : root.muted; font-size: 13px; font-weight: root.loud(session.summary-state) ? 600 : 400; vertical-alignment: center; }
+                                    Text { text: session.agent-count; color: root.muted; font-size: 13px; vertical-alignment: center; visible: session.agent-count != ""; }
+                                }
+                                if session.projects != "": Text { text: session.projects; color: root.muted; font-size: 13px; height: 20px; overflow: elide; }
+                                for agent in session.agents: Rectangle {
+                                    height: 28px; border-radius: 4px;
+                                    background: root.loud(agent.status) ? root.state-color(agent.status).with-alpha(0.12) : transparent;
+                                    HorizontalLayout {
+                                        padding-left: 6px; padding-right: 8px; spacing: 10px;
+                                        Rectangle { width: 6px; Rectangle { width: 6px; height: 6px; border-radius: 3px; background: root.state-color(agent.status); } }
+                                        Text { text: agent.title; color: root.loud(agent.status) ? root.state-color(agent.status) : root.fg; font-size: 13px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                                        Text { text: agent.label; color: root.state-color(agent.status); font-size: 13px; font-weight: root.loud(agent.status) ? 600 : 400; vertical-alignment: center; }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if root.data.sessions.length == 0 && root.data.ok: Text { text: "No herdr session.\nStart herdr in WSL to see its agents here."; color: root.muted; font-size: 12px; wrap: word-wrap; }
+                    if !root.data.ok: Text { text: root.data.error != "" ? root.data.error : "herdr is unreachable"; color: root.alert; font-size: 12px; wrap: word-wrap; }
+                }
+            }
+            if root.provider-error != "": Text { text: root.provider-error; color: root.alert; font-size: 11px; wrap: word-wrap; max-height: 48px; }
+            HorizontalLayout {
+                height: 16px;
+                Text { text: root.busy ? "Reading from WSL…" : "Read-only · refreshed every 3 s while open"; color: root.muted; font-size: 10px; horizontal-stretch: 1; overflow: elide; }
+            }
+        }
+    }
+}
