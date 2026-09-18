@@ -12,7 +12,10 @@ Assert ($data.windows.Count -eq 2) 'Both windows'
 Assert ($data.windows[0].pace -eq '16 pts under') 'Linear reference, not a forecast'
 Assert ($data.windows[0].resets -eq 'Resets in 2h 30m') 'Reset duration'
 Assert ((Build-Data (Snapshot $null $week) $now).bar_label -eq '—') 'Weekly must never replace session quota'
-Assert ((Build-Data (Snapshot $five $week) ($now+601)).bar_label -eq '~34%') 'Stale marker'
+$stale = Build-Data (Snapshot $five $week) ($now+601)
+Assert ($stale.bar_label -eq '34%') 'Bar percentage stays clean when stale'
+Assert ($stale.message -eq 'Stale quota; waiting for a new CLI update') 'Popup still explains stale quota'
+Assert ($stale.windows[0].used -eq '~34%' -and -not $stale.windows[0].fresh) 'Popup retains the stale marker'
 Assert ((Build-Data (Snapshot $five $week) ($now+9000)).bar_label -eq '—') 'Expired session is unknown, not zero'
 $five.used_percentage=0
 Assert ((Build-Data (Snapshot $five $null) $now).bar_label -eq '0%') 'Zero is a valid value'

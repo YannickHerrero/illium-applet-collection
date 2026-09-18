@@ -47,7 +47,7 @@ Claude Code statusline JSON
 The cache is deliberately outside the watched Winarchy configuration. Concurrent relay writes are serialized and published atomically. Unchanged values write at most once per minute; a changed quota can publish immediately. Missing fields do not make a previous reading look fresh. Receipt timestamps are maintained separately for each window.
 
 - A snapshot receipt is **not** an independent server measurement. Claude Code can resend a cached reading. Simply leaving an idle CLI open does not force new server data.
-- After ten minutes without a valid update, values are marked `~` and the panel explains that they are stale.
+- After ten minutes without a valid update, popup values are marked `~` and the panel explains that they are stale. The bar keeps the plain percentage without a `~` prefix; freshness is detailed in the popup.
 - Once the 5-hour reset passes, the bar returns to `—` until another valid reading arrives; it does not invent a fresh 0%.
 - The weekly window never substitutes for a missing session value.
 - **Reload snapshot** / `r` rereads the local file. It does not request new quotas from Anthropic.

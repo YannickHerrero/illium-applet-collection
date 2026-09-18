@@ -40,7 +40,7 @@ function Build-Data($snapshot, [long]$now, $fable = $null) {
         if ($key -eq 'five_hour') {
             if ($reset -le $now) { $data.message = 'Session window reset; waiting for Claude Code' }
             elseif ($fresh) { $data.bar_label = $percentage; $data.message = 'From active Claude Code sessions on WSL' }
-            else { $data.bar_label = "~$percentage"; $data.message = 'Stale quota; waiting for a new CLI update' }
+            else { $data.bar_label = $percentage; $data.message = 'Stale quota; waiting for a new CLI update' }
         }
     }
     if ($latest -gt 0) {
