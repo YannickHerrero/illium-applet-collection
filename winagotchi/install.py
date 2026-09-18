@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install Omagotchi from WSL; no engine changes, services, or audio."""
+"""Install Winagotchi from WSL; no engine changes, services, or audio."""
 import argparse
 import json
 import os
@@ -13,7 +13,7 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parent
 FILES = ('applet.toml', 'view.slint', 'sprites.slint', 'README.md', 'LICENSE', 'SOURCES.md')
-NAME = 'omagotchi'
+NAME = 'winagotchi'
 
 
 def plan_bar(raw):
@@ -22,20 +22,22 @@ def plan_bar(raw):
     sections = [data.get(key, []) for key in ('left', 'center', 'right')]
     if any(not isinstance(v, list) or any(not isinstance(x, str) for x in v) for v in sections):
         raise ValueError('Bar sections must be arrays of module names')
-    if any(NAME in section for section in sections):
-        raise ValueError('Omagotchi is already referenced by the bar')
-    if 'right' not in data:
-        raise ValueError('bar.toml needs a right module array')
+    if any(NAME in section or 'omagotchi' in section for section in sections):
+        raise ValueError('Winagotchi or its old Omagotchi name is already in the bar; see migration instructions')
+    if 'left' not in data:
+        raise ValueError('bar.toml needs a left module array')
     # Parse TOML first, then only patch a simple single-line array. Compare
     # complete parsed documents afterwards: quoted brackets/comments are safe.
     array = r'''\[(?:[^\]"'\r\n]|"(?:[^"\\\r\n]|\\.)*"|'[^'\r\n]*')*\]'''
-    matches = list(re.finditer(r'(?m)^([ \t\ufeff]*right[ \t]*=[ \t]*)(' + array + ')', text))
+    matches = list(re.finditer(r'(?m)^([ \t\ufeff]*left[ \t]*=[ \t]*)(' + array + ')', text))
     if len(matches) != 1:
-        raise ValueError('A multiline/complex right array requires manual installation')
+        raise ValueError('A multiline/complex left array requires manual installation')
     match = matches[0]
-    updated = data['right'] + [NAME]
+    modules = data['left']
+    position = modules.index('workspaces') if 'workspaces' in modules else 0
+    updated = modules[:position] + [NAME] + modules[position:]
     result = text[:match.start(2)] + json.dumps(updated, ensure_ascii=False) + text[match.end(2):]
-    if tomllib.loads(result.lstrip('\ufeff')) != dict(data, right=updated):
+    if tomllib.loads(result.lstrip('\ufeff')) != dict(data, left=updated):
         raise ValueError('Bar edit changed unexpected configuration')
     return result.encode('utf-8')
 
@@ -43,7 +45,7 @@ def plan_bar(raw):
 def atomic(path, data):
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.omagotchi-', delete=False) as file:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.winagotchi-', delete=False) as file:
             temporary = Path(file.name)
             file.write(data)
         os.replace(temporary, path)
@@ -57,7 +59,9 @@ def install(config, binary, windows_config, backup_root):
     bar = config / 'bar.toml'
     target = config / 'applets' / NAME
     if target.exists() or target.is_symlink():
-        raise ValueError('Existing Omagotchi will not be overwritten; back it up and upgrade manually')
+        raise ValueError('Existing Winagotchi will not be overwritten; back it up and upgrade manually')
+    if (target.parent / 'omagotchi').exists():
+        raise ValueError('An old Omagotchi installation exists; migrate it with Winarchy stopped (see README)')
     if bar.is_symlink() or not bar.is_file():
         raise ValueError('bar.toml must be an existing regular file')
     if target.parent.is_symlink():
@@ -76,7 +80,7 @@ def install(config, binary, windows_config, backup_root):
     native = PureWindowsPath(windows_config)
     if not native.is_absolute():
         raise ValueError('Windows configuration path must be absolute')
-    program = str(native / 'applets' / NAME / 'omagotchi.exe')
+    program = str(native / 'applets' / NAME / 'winagotchi.exe')
     manifest, count = re.subn(r'(?m)^command = .*$', lambda _: 'command = ' + json.dumps([program]),
                               (ROOT / 'applet.toml').read_text())
     if count != 1 or tomllib.loads(manifest)['command'] != [program]:
@@ -85,11 +89,11 @@ def install(config, binary, windows_config, backup_root):
     if backup_root.is_relative_to(config) or backup_root.is_relative_to(ROOT.parent):
         raise ValueError('Backups must be outside the configuration tree and this repository')
     backup_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    backup = Path(tempfile.mkdtemp(prefix='omagotchi-install-', dir=backup_root))
+    backup = Path(tempfile.mkdtemp(prefix='winagotchi-install-', dir=backup_root))
     (backup / 'bar.toml').write_bytes(original)
     (backup / 'bar.toml').chmod(0o600)
     # Publish a complete directory before adding its name to the bar.
-    stage = Path(tempfile.mkdtemp(prefix='.omagotchi-stage-', dir=config.parent))
+    stage = Path(tempfile.mkdtemp(prefix='.winagotchi-stage-', dir=config.parent))
     published = False
     try:
         for name in FILES:
@@ -98,7 +102,7 @@ def install(config, binary, windows_config, backup_root):
             shutil.copyfile(icon, stage / icon.name)
         shutil.copytree(ROOT / 'assets', stage / 'assets')
         (stage / 'applet.toml').write_text(manifest, encoding='utf-8')
-        (stage / 'omagotchi.exe').write_bytes(image)
+        (stage / 'winagotchi.exe').write_bytes(image)
         if bar.read_bytes() != original or target.exists() or target.is_symlink():
             raise ValueError('Configuration changed during installation; review it and retry')
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -122,7 +126,7 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--config', type=Path, help='Winarchy configuration directory, WSL spelling')
     group.add_argument('--windows-home', type=Path, help='WSL Windows profile; uses .config/winarchy')
-    parser.add_argument('--binary', type=Path, default=ROOT / 'provider/target/x86_64-pc-windows-msvc/release/omagotchi.exe')
+    parser.add_argument('--binary', type=Path, default=ROOT / 'provider/target/x86_64-pc-windows-msvc/release/winagotchi.exe')
     parser.add_argument('--windows-config', help='Native Windows spelling; defaults to wslpath -w')
     parser.add_argument('--backup-root', type=Path, default=Path.home() / '.local/state/winarchy-applet-collection/backups')
     args = parser.parse_args()

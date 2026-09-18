@@ -14,17 +14,17 @@ python3 activity-monitor/install.py --config /mnt/c/Users/<WindowsUser>/.config/
 
 It backs up `bar.toml`, replaces only CPU/memory entries and leaves Claude's relay/settings alone. See its README for precise metric scopes, measured startup overhead and safe rollback instructions.
 
-## Omagotchi
+## Winagotchi
 
-[`omagotchi/`](omagotchi/README.md) brings [SLcode777's Omagotchi](https://github.com/SLcode777/omagotchi) to Winarchy as an **entirely silent**, themed pixel-pet room: growth, feeding, mouse scrubbing, cuddles, room play, sleep and generations. A standalone Rust provider saves outside the watched config tree and excludes offline/sleep time. No engine changes or desktop roaming overlay.
+[`winagotchi/`](winagotchi/README.md) brings [SLcode777's Omagotchi](https://github.com/SLcode777/omagotchi) to Winarchy as an **entirely silent**, themed pixel-pet room: growth, feeding, mouse scrubbing, cuddles, room play, sleep and generations. A standalone Rust provider saves outside the watched config tree and excludes offline/sleep time. No engine changes or desktop roaming overlay.
 
 Build its Windows provider, then install independently:
 
 ```sh
-python3 -B omagotchi/install.py --windows-home /mnt/c/Users/<WindowsUser>
+python3 -B winagotchi/install.py --windows-home /mnt/c/Users/<WindowsUser>
 ```
 
-The installer backs up the bar and appends `omagotchi` without replacing existing modules. See its README for build, care, tests and rollback instructions.
+The installer backs up the bar and places `winagotchi` before the workspaces without replacing existing modules. This position requires a Winarchy build that honors the workspace group's configured order. See its README for build, care, tests and rollback instructions.
 
 ## Herdr
 
@@ -64,7 +64,7 @@ This preserves the current statusline, backs up settings, and adds the applet to
 
 ## Development
 
-Claude Usage uses Python 3.11+ (standard library) for its WSL relay/setup and Windows PowerShell 5.1 for its provider. Activity Monitor and Omagotchi use Rust 1.89+ to build standalone Windows executables, with Python only for installation. Herdr uses bash 5 and jq in WSL; Dictation uses Windows PowerShell 5.1. All use Slint 1.12.1 views. Keep all generated data and private settings out of Git.
+Claude Usage uses Python 3.11+ (standard library) for its WSL relay/setup and Windows PowerShell 5.1 for its provider. Activity Monitor and Winagotchi use Rust 1.89+ to build standalone Windows executables, with Python only for installation. Herdr uses bash 5 and jq in WSL; Dictation uses Windows PowerShell 5.1. All use Slint 1.12.1 views. Keep all generated data and private settings out of Git.
 
 Atomic commits must use `YannickHerrero <yannick.herrero@proton.me>`. No remote or publication is configured automatically.
 

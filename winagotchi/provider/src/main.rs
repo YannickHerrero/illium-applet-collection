@@ -14,7 +14,7 @@ fn run() -> Result<(), String> {
         None => std::path::PathBuf::from(
             std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA is missing")?,
         )
-        .join("Winarchy/omagotchi"),
+        .join("Winarchy/winagotchi"),
     };
     if !dir.is_absolute() {
         return Err("State directory must be absolute".into());
@@ -34,7 +34,7 @@ fn run() -> Result<(), String> {
 }
 fn main() {
     if let Err(error) = run() {
-        eprintln!("Omagotchi: {error}");
+        eprintln!("Winagotchi: {error}");
         std::process::exit(1);
     }
 }

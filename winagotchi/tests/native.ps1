@@ -1,7 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$Provider)
 $ErrorActionPreference = 'Stop'
 $Provider = (Resolve-Path $Provider).Path
-$directory = Join-Path ([IO.Path]::GetTempPath()) ('omagotchi-test-' + [guid]::NewGuid().ToString('N'))
+$directory = Join-Path ([IO.Path]::GetTempPath()) ('winagotchi-test-' + [guid]::NewGuid().ToString('N'))
 $previous = $env:WINARCHY_APPLET_STATE_DIR
 $env:WINARCHY_APPLET_STATE_DIR = $directory
 function Assert($ok, $message) { if (-not $ok) { throw $message } }

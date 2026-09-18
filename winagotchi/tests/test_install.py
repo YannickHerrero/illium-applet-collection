@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('omagotchi_install', ROOT / 'install.py')
+spec = importlib.util.spec_from_file_location('winagotchi_install', ROOT / 'install.py')
 install = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(install)
 
@@ -17,11 +17,11 @@ class InstallTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name); self.config = self.root / 'config'; self.config.mkdir()
         self.bar = self.config / 'bar.toml'
-        self.original = b'\xef\xbb\xbf# Preserve me\r\nleft = ["workspaces"]\r\ncenter = ["clock"]\r\nright = ["wifi", "claude-usage"] # ] keep\r\nclock_format = "%A %d %b"\r\n'
+        self.original = b'\xef\xbb\xbf# Preserve me\r\nleft = ["workspaces"] # ] keep\r\ncenter = ["clock"]\r\nright = ["wifi", "claude-usage"]\r\nclock_format = "%A %d %b"\r\n'
         self.bar.write_bytes(self.original)
         image = bytearray(256); image[:2] = b'MZ'
         struct.pack_into('<I', image, 0x3c, 128); image[128:134] = b'PE\0\0\x64\x86'
-        self.binary = self.root / 'omagotchi.exe'; self.binary.write_bytes(image)
+        self.binary = self.root / 'winagotchi.exe'; self.binary.write_bytes(image)
         self.backups = self.root / 'backups'
 
     def run_install(self):
@@ -30,15 +30,15 @@ class InstallTests(unittest.TestCase):
     def test_preserves_bar_and_installs_complete_silent_pack(self):
         result = self.run_install()
         data = tomllib.loads(self.bar.read_text(encoding='utf-8-sig'))
-        self.assertEqual(data['right'], ['wifi', 'claude-usage', 'omagotchi'])
-        self.assertEqual(data['left'], ['workspaces']); self.assertEqual(data['center'], ['clock'])
+        self.assertEqual(data['right'], ['wifi', 'claude-usage'])
+        self.assertEqual(data['left'], ['winagotchi', 'workspaces']); self.assertEqual(data['center'], ['clock'])
         self.assertIn(b'# ] keep\r\n', self.bar.read_bytes())
         self.assertIn(b'clock_format = "%A %d %b"\r\n', self.bar.read_bytes())
         self.assertTrue(self.bar.read_bytes().startswith(b'\xef\xbb\xbf'))
         self.assertEqual((Path(result['backup']) / 'bar.toml').read_bytes(), self.original)
         app = Path(result['applet']); manifest = tomllib.loads((app / 'applet.toml').read_text())
-        self.assertEqual(manifest['command'], [r'C:\Users\Test User\.config\winarchy\applets\omagotchi\omagotchi.exe'])
-        self.assertEqual((app / 'omagotchi.exe').read_bytes(), self.binary.read_bytes())
+        self.assertEqual(manifest['command'], [r'C:\Users\Test User\.config\winarchy\applets\winagotchi\winagotchi.exe'])
+        self.assertEqual((app / 'winagotchi.exe').read_bytes(), self.binary.read_bytes())
         self.assertEqual(len(list((app / 'assets/sprites').glob('*.png'))), 83)
         for icon in app.glob('*.png'):
             self.assertEqual(icon.read_bytes(), (app / 'assets/sprites' / icon.name).read_bytes())
@@ -52,23 +52,36 @@ class InstallTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.run_install()
         self.assertEqual(self.bar.read_bytes(), snapshot)
 
+    def test_old_installation_requires_explicit_migration(self):
+        (self.config / 'applets/omagotchi').mkdir(parents=True)
+        with self.assertRaises(ValueError): self.run_install()
+        self.assertEqual(self.bar.read_bytes(), self.original)
+        self.assertFalse(self.backups.exists())
+
     def test_multiline_duplicate_or_bad_arrays_are_rejected(self):
-        for raw in [b'right = [\n"wifi"\n]\n', b'left = ["omagotchi"]\nright = []\n',
-                    b'left = 1\nright = []\n', b'right = [3]\n', b'left = []\n']:
+        for raw in [b'left = [\n"workspaces"\n]\n', b'left = ["winagotchi"]\nright = []\n',
+                    b'left=[]\nright=["omagotchi"]', b'left = 1\nright = []\n',
+                    b'left = [3]\n', b'right = []\n']:
             with self.subTest(raw=raw), self.assertRaises(ValueError): install.plan_bar(raw)
 
     def test_empty_unicode_and_quoted_brackets(self):
-        for raw in [b'right=[]', 'right = ["日本語", "a]b"] # comment\n'.encode()]:
+        for raw in [b'left=[]', 'left = ["日本語", "a]b"] # comment\n'.encode()]:
             result = tomllib.loads(install.plan_bar(raw).decode())
             original = tomllib.loads(raw.decode())
-            self.assertEqual(result, dict(original, right=original['right'] + ['omagotchi']))
+            self.assertEqual(result, dict(original, left=['winagotchi'] + original['left']))
+
+    def test_inserts_immediately_before_workspaces_preserving_other_positions(self):
+        raw = b'left=["clock", "separator", "workspaces", "weather"]\nright=["wifi"]'
+        result = tomllib.loads(install.plan_bar(raw).decode())
+        self.assertEqual(result['left'], ['clock', 'separator', 'winagotchi', 'workspaces', 'weather'])
+        self.assertEqual(result['right'], ['wifi'])
 
     def test_failure_rolls_back_applet_without_touching_bar(self):
         with patch.object(install, 'atomic', side_effect=OSError('fixture')):
             with self.assertRaises(OSError): self.run_install()
         self.assertEqual(self.bar.read_bytes(), self.original)
-        self.assertFalse((self.config / 'applets/omagotchi').exists())
-        self.assertEqual(list(self.root.glob('.omagotchi-stage-*')), [])
+        self.assertFalse((self.config / 'applets/winagotchi').exists())
+        self.assertEqual(list(self.root.glob('.winagotchi-stage-*')), [])
 
     def test_concurrent_bar_change_is_preserved(self):
         original_copy = install.shutil.copyfile
@@ -79,7 +92,7 @@ class InstallTests(unittest.TestCase):
         with patch.object(install.shutil, 'copyfile', side_effect=copying):
             with self.assertRaises(ValueError): self.run_install()
         self.assertTrue(self.bar.read_bytes().endswith(b'# concurrent change\n'))
-        self.assertFalse((self.config / 'applets/omagotchi').exists())
+        self.assertFalse((self.config / 'applets/winagotchi').exists())
 
     def test_invalid_binary_or_native_path_does_not_write(self):
         for native in ['relative/path', 'C:relative']:

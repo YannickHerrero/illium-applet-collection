@@ -1,13 +1,13 @@
 //! Bounded, locked, atomic state. Never lives in Winarchy's watched config tree.
 #![cfg_attr(not(windows), allow(dead_code))]
 use fs2::FileExt;
-use omagotchi::State;
 use std::{
     fs::{self, File, OpenOptions},
     io::{Read, Write},
     path::Path,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+use winagotchi::State;
 const LIMIT: u64 = 65_536;
 pub fn lock(dir: &Path) -> Result<File, String> {
     fs::create_dir_all(dir).map_err(|e| e.to_string())?;
@@ -117,7 +117,7 @@ mod tests {
     use super::*;
     #[test]
     fn roundtrip_corruption_and_future_version() {
-        let dir = std::env::temp_dir().join(format!("omagotchi-storage-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("winagotchi-storage-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         let lock = lock(&dir).unwrap();
         let pet = load(&dir).unwrap();
@@ -145,7 +145,7 @@ mod tests {
     }
     #[test]
     fn lock_serializes_writers_and_releases_on_drop() {
-        let dir = std::env::temp_dir().join(format!("omagotchi-lock-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("winagotchi-lock-{}", std::process::id()));
         let first = lock(&dir).unwrap();
         let second = OpenOptions::new()
             .read(true)

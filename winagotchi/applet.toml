@@ -1,5 +1,5 @@
 # The installer replaces this with the absolute Windows executable path.
-command = ["omagotchi.exe"]
+command = ["winagotchi.exe"]
 icon = "{icon}"
 interval = "30s"
 focusable = true

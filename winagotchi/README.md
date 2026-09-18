@@ -1,4 +1,4 @@
-# Omagotchi for Winarchy
+# Winagotchi for Winarchy
 
 An independent, **entirely silent** port of [SLcode777/omagotchi](https://github.com/SLcode777/omagotchi): a tiny pixel companion in your bar, with a themed, animated room. No Winarchy engine changes, Qt/Quickshell, PowerShell runtime, permanent service, network requests, system modification or administrator rights. Original MIT sprites and attribution: [SOURCES.md](SOURCES.md), [LICENSE](LICENSE).
 
@@ -43,8 +43,8 @@ The Windows provider uses `QueryUnbiasedInterruptTime` (uptime excluding sleep/h
 Private data lives **outside the repository and Winarchy's watched config tree**:
 
 ```text
-%LOCALAPPDATA%\Winarchy\omagotchi\state.json
-%LOCALAPPDATA%\Winarchy\omagotchi\state.lock
+%LOCALAPPDATA%\Winarchy\winagotchi\state.json
+%LOCALAPPDATA%\Winarchy\winagotchi\state.lock
 ```
 
 The profile's inherited permissions apply. An OS-held exclusive file lock serializes providers, including configuration reload races, and is released on process exit/crash. Writes flush to a temporary file and atomically replace the save. Reads are bounded to 64 KiB and values are validated. Corrupt/oversized saves are renamed to `state-corrupt-<timestamp>-<pid>.json`, never silently overwritten; a fresh egg shows a recovery notice. Unknown future save versions and I/O errors leave the original untouched and report an error. Review recovery files before deleting them; no automatic backup cleanup occurs.
@@ -66,7 +66,7 @@ cargo build --release --locked
 From WSL with cargo-xwin and Winarchy's cross-toolchain:
 
 ```sh
-cd omagotchi/provider
+cd winagotchi/provider
 PATH="$HOME/.local/llvm19/bin:$PATH" cargo xwin build \
   --target x86_64-pc-windows-msvc --release --locked
 cd ..
@@ -78,17 +78,32 @@ For a custom `WINARCHY_CONFIG_HOME`, use `--config /mnt/c/path/to/winarchy` inst
 The installer:
 
 1. Validates the provider's Windows PE architecture and bar configuration.
-2. Backs up the exact `bar.toml` to `~/.local/state/winarchy-applet-collection/backups/omagotchi-install-*`.
-3. Stages the complete applet outside the watched config tree, then publishes `applets/omagotchi/`.
-4. Sets an absolute Windows executable path and appends `omagotchi` to the bar's `right` array.
+2. Backs up the exact `bar.toml` to `~/.local/state/winarchy-applet-collection/backups/winagotchi-install-*`.
+3. Stages the complete applet outside the watched config tree, then publishes `applets/winagotchi/`.
+4. Sets an absolute Windows executable path and inserts `winagotchi` immediately before `workspaces` in the bar's `left` array (at the start if no workspace group is configured).
 
-Existing modules, unrelated files, comments outside the changed array and settings are preserved. Multiline/complex right arrays require manual installation rather than risky reformatting. Existing applet installations are never overwritten. No Winarchy source files, theme, wallpaper or other applet settings are changed. Winarchy hot-reloads; no engine rebuild is needed.
+**Bar placement requires a Winarchy build that honors the workspace group's configured position.** Older builds always render workspaces first, regardless of the TOML order. Update the engine separately; this installer never modifies it.
 
-For a manual Windows install, copy `applet.toml`, `view.slint`, `sprites.slint`, `assets/`, all root-level PNGs, `README.md`, `LICENSE`, `SOURCES.md` and the built `omagotchi.exe` into `%USERPROFILE%\.config\winarchy\applets\omagotchi\`. Edit `command` in `applet.toml` to the executable's absolute Windows path using a valid TOML string. Back up `bar.toml`, then add `"omagotchi"` to one bar section. **Do not copy `provider/target`, tests or private state.**
+Existing modules, unrelated files, comments outside the changed array and settings are preserved. Multiline/complex left arrays require manual installation rather than risky reformatting. Existing applet installations are never overwritten. No Winarchy source files, theme, wallpaper or other applet settings are changed. Winarchy hot-reloads; no engine rebuild is needed.
+
+For a manual Windows install, copy `applet.toml`, `view.slint`, `sprites.slint`, `assets/`, all root-level PNGs, `README.md`, `LICENSE`, `SOURCES.md` and the built `winagotchi.exe` into `%USERPROFILE%\.config\winarchy\applets\winagotchi\`. Edit `command` in `applet.toml` to the executable's absolute Windows path using a valid TOML string. Back up `bar.toml`, then use `left = ["winagotchi", "workspaces"]` (retaining any other configured modules). **Do not copy `provider/target`, tests or private state.**
 
 For upgrades, exit Winarchy, back up the installed applet and state outside the config tree, then replace the applet files as a set, retaining its absolute command and any settings. The fresh installer intentionally refuses upgrades.
 
-To uninstall, remove `omagotchi` from `bar.toml`, then remove its applet directory. Keep the private state to resume later, or delete it separately to start over. Restore the entire backed-up bar only if no later unrelated bar changes would be lost.
+To uninstall, remove `winagotchi` from `bar.toml`, then remove its applet directory. Keep the private state to resume later, or delete it separately to start over. Restore the entire backed-up bar only if no later unrelated bar changes would be lost.
+
+## Renaming an existing Omagotchi installation
+
+The initial Windows port was named `omagotchi`. The pet save format has not changed. To migrate without losing progress:
+
+1. Exit Winarchy cleanly and wait for any provider process to finish.
+2. Back up `bar.toml`, the installed `applets/omagotchi/` folder and `%LOCALAPPDATA%\Winarchy\omagotchi\` outside the watched configuration tree.
+3. Install the new applet files manually as above in `applets/winagotchi/`, with the new executable's absolute path in its manifest.
+4. Copy the old `state.json` unchanged into `%LOCALAPPDATA%\Winarchy\winagotchi\`. Do not overwrite an existing new-name save; resolve that conflict explicitly first. No lock file needs copying.
+5. Replace the old bar reference with `winagotchi`, immediately before `workspaces` in `left`, and remove the old applet directory only after backing it up.
+6. Restart Winarchy and verify the same generation, form and age. Retain the old state and backups until satisfied.
+
+The fresh installer refuses a configured/installed `omagotchi` rather than silently creating a second pet. This is a Windows-port rename, not an importer for the original Linux save format. Upstream attribution remains Omagotchi.
 
 ## Tests
 
@@ -100,7 +115,7 @@ PATH="$HOME/.local/llvm19/bin:$PATH" cargo xwin clippy \
   --target x86_64-pc-windows-msvc --all-targets --locked -- -D warnings
 cd ..
 python3 -B -m unittest discover -s tests -v
-xvfb-run -a python3 -B tests/preview.py /tmp/omagotchi-preview
+xvfb-run -a python3 -B tests/preview.py /tmp/winagotchi-preview
 ```
 
 Rendering fixtures use Slint viewer **1.12.1**, Pillow and X11/XTest, in a disposable Xvfb display. They render all eight forms, light/dark themes, 100/150/200% scaling, a reduced popup, provider errors, wash mode and confirmation. They check visible animation/closed animation, sprite pixels, one-shot petting, scrub batching and generation-pinned farewell without running a provider. Screenshots stay in the chosen temporary output directory.
@@ -108,7 +123,7 @@ Rendering fixtures use Slint viewer **1.12.1**, Pillow and X11/XTest, in a dispo
 On Windows:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tests/native.ps1 -Provider <absolute-path-to-omagotchi.exe>
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/native.ps1 -Provider <absolute-path-to-winagotchi.exe>
 ```
 
 Native fixtures use a fresh temporary state directory and never read or modify a real pet. They exercise the actual Windows clock/parent identity, atomic saves and gameplay/recovery. Physical suspend/resume and interactive integration in a live Winarchy bar still deserve a manual smoke test; automated tests simulate session changes and time gaps rather than suspending the workstation.
