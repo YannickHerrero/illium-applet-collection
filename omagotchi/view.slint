@@ -1,0 +1,258 @@
+import { ScrollView } from "std-widgets.slint";
+import { PetSprite } from "sprites.slint";
+
+struct Data {
+    ready: bool, generation: int, form: string, stage: string, form-label: string,
+    age: string, care: int, needs: [float], sleeping: bool, mood: string,
+    animation: string, notice: string,
+}
+component Button inherits Rectangle {
+    in property <string> text;
+    in property <color> fg;
+    in property <color> fill;
+    in property <color> line;
+    in property <bool> enabled: true;
+    callback clicked();
+    height: 34px; border-radius: 4px;
+    border-width: 1px; border-color: line;
+    background: touch.has-hover && enabled ? line : fill;
+    opacity: enabled ? 1 : 0.45;
+    Text { text: root.text; color: root.fg; font-size: 12px; vertical-alignment: center; horizontal-alignment: center; }
+    touch := TouchArea { enabled: root.enabled; clicked => { root.clicked(); } }
+}
+component Gauge inherits Rectangle {
+    in property <string> label;
+    in property <float> value;
+    in property <color> fg;
+    in property <color> muted;
+    in property <color> fill;
+    in property <color> accent;
+    height: 23px;
+    HorizontalLayout {
+        spacing: 10px;
+        Text { width: 65px; text: root.label; color: root.muted; font-size: 11px; vertical-alignment: center; }
+        Rectangle {
+            Rectangle {
+                x: 0px; y: 9px; width: parent.width; height: 5px;
+                border-radius: 2px; background: root.fill;
+                Rectangle { x: 0px; y: 0px; width: parent.width * clamp(root.value, 0, 100) / 100; height: parent.height; border-radius: 2px; background: root.accent; }
+            }
+        }
+        Text { width: 30px; text: round(root.value) + "%"; color: root.fg; font-size: 10px; vertical-alignment: center; horizontal-alignment: right; }
+    }
+}
+export component View inherits Window {
+    no-frame: true;
+    in property <length> popup-width: 410px;
+    in property <length> popup-height: 610px;
+    width: popup-width; height: popup-height;
+    in property <color> bg: #1e1e2e;
+    in property <color> surface: #313244;
+    in property <color> overlay: #45475a;
+    in property <color> fg: #cdd6f4;
+    in property <color> muted: #a6adc8;
+    in property <color> accent: #cba6f7;
+    in property <Data> data;
+    in property <bool> busy: false;
+    in property <bool> open: false;
+    in property <string> provider-error;
+    callback action(string);
+    callback completed();
+    callback dismissed();
+    callback cancel() -> bool;
+    property <bool> pending: false;
+    property <bool> frame: false;
+    property <int> effect-ticks: 0;
+    property <string> effect;
+    property <bool> washing: false;
+    property <float> scrub: 0;
+    property <length> last-x;
+    property <length> last-y;
+    property <bool> confirming: false;
+    property <int> farewell-generation: 0;
+    property <bool> available: data.ready && !busy && !pending && !confirming;
+    property <bool> egg: data.stage == "egg";
+    property <bool> child-or-older: !egg && data.stage != "baby";
+    property <bool> active-effect: effect-ticks > 0;
+    property <string> sprite-animation: active-effect && effect == "eat" ? "eat"
+        : active-effect && effect == "play" ? "walk"
+        : data.sleeping ? "sleep" : "idle";
+    property <[string]> labels: ["Hunger", "Dirt", "Fatigue", "Boredom", "Loneliness"];
+    property <int> emote-cycle: 0;
+    property <[int]> complaints: [data.needs[0] >= 60 ? 0 : -1, data.needs[1] >= 60 ? 1 : -1,
+        data.needs[2] >= 60 ? 2 : -1, data.needs[3] >= 60 ? 3 : -1, data.needs[4] >= 60 ? 4 : -1];
+    property <int> emote-index: complaints[mod(emote-cycle, 5)] >= 0 ? complaints[mod(emote-cycle, 5)]
+        : complaints[mod(emote-cycle + 1, 5)] >= 0 ? complaints[mod(emote-cycle + 1, 5)]
+        : complaints[mod(emote-cycle + 2, 5)] >= 0 ? complaints[mod(emote-cycle + 2, 5)]
+        : complaints[mod(emote-cycle + 3, 5)] >= 0 ? complaints[mod(emote-cycle + 3, 5)]
+        : complaints[mod(emote-cycle + 4, 5)];
+    function send(verb: string) {
+        if (!busy && !pending) { pending = true; root.action(verb); }
+    }
+    changed open => {
+        if (open) { root.send("refresh"); }
+    }
+    changed data => {
+        effect = data.animation;
+        effect-ticks = data.animation == "eat" || data.animation == "pet" || data.animation == "wash" || data.animation == "play" ? 6 : 0;
+        if (confirming && (data.generation != farewell-generation || data.stage != "adult")) { confirming = false; }
+    }
+    completed => { pending = false; }
+    dismissed => { washing = false; scrub = 0; confirming = false; effect-ticks = 0; }
+    cancel => {
+        if (confirming) { confirming = false; return true; }
+        if (washing) { washing = false; scrub = 0; return true; }
+        return false;
+    }
+    Timer {
+        interval: 500ms; running: root.open; triggered => {
+            root.frame = !root.frame;
+            if (root.effect-ticks > 0) { root.effect-ticks -= 1; }
+        }
+    }
+    Timer { interval: 3s; running: root.open; triggered => { root.emote-cycle = mod(root.emote-cycle + 1, 5); } }
+    background: bg;
+    Rectangle {
+        border-width: 1px; border-color: root.overlay;
+        ScrollView {
+            x: 1px; y: 1px; width: parent.width - 2px; height: parent.height - 2px;
+            VerticalLayout {
+                padding: 18px; spacing: 10px;
+                HorizontalLayout {
+                    height: 34px;
+                    VerticalLayout {
+                        spacing: 2px;
+                        Text { text: "Omagotchi"; font-size: 18px; font-weight: 600; color: root.fg; }
+                        Text { text: root.data.ready ? "YOUR LITTLE DESKTOP COMPANION" : "WARMING UP…"; font-size: 9px; color: root.muted; }
+                    }
+                    Text { text: "GEN " + max(1, root.data.generation); font-size: 10px; color: root.accent; horizontal-alignment: right; vertical-alignment: center; }
+                }
+                room := Rectangle {
+                    height: 192px; border-radius: 6px;
+                    background: root.surface;
+                    border-width: 1px; border-color: root.overlay;
+                    // The room changes with age; monochrome pixels follow the theme.
+                    Rectangle { x: 12px; y: parent.height - 32px; width: parent.width - 24px; height: 2px; background: root.overlay; }
+                    if root.egg: Image {
+                        x: 38px; y: 38px; width: 56px; height: 96px;
+                        source: @image-url("assets/sprites/decor_lamp.png"); colorize: root.muted; image-rendering: pixelated; image-fit: contain;
+                    }
+                    if root.data.stage == "baby": Image {
+                        x: 30px; y: 12px; width: 80px; height: 70px;
+                        source: @image-url("assets/sprites/decor_mobile.png"); colorize: root.muted; image-rendering: pixelated; image-fit: contain;
+                    }
+                    if root.data.stage == "child" || (root.active-effect && root.effect == "play"): Image {
+                        x: room.width - 66px; y: root.active-effect && root.frame ? 100px : 130px; width: 24px; height: 24px;
+                        source: @image-url("assets/sprites/decor_ball.png"); colorize: root.accent; image-rendering: pixelated;
+                    }
+                    if root.data.stage == "teen": Image {
+                        x: 25px; y: 20px; width: 60px; height: 64px;
+                        source: @image-url("assets/sprites/decor_poster.png"); colorize: root.muted; image-rendering: pixelated; image-fit: contain;
+                    }
+                    if root.data.stage == "teen": Image {
+                        x: room.width - 80px; y: 128px; width: 48px; height: 24px;
+                        source: root.data.form == "teen_scruffy" ? @image-url("assets/sprites/decor_sock.png") : @image-url("assets/sprites/decor_controller.png");
+                        colorize: root.muted; image-rendering: pixelated; image-fit: contain;
+                    }
+                    if root.data.stage == "adult": Image {
+                        x: room.width - 90px; y: 75px; width: 64px; height: 80px;
+                        source: root.data.form == "adult_ace" ? @image-url("assets/sprites/decor_plant_ace.png")
+                            : root.data.form == "adult_ok" ? @image-url("assets/sprites/decor_plant_ok.png") : @image-url("assets/sprites/decor_plant_gremlin.png");
+                        colorize: root.muted; image-rendering: pixelated; image-fit: contain;
+                    }
+                    if !root.egg && !root.data.sleeping && root.emote-index >= 0 && !root.active-effect: Image {
+                        x: (room.width - 24px) / 2; y: 28px; width: 24px; height: 24px;
+                        source: root.emote-index == 0 ? @image-url("assets/sprites/emote_hungry.png")
+                            : root.emote-index == 1 ? @image-url("assets/sprites/emote_dirty.png")
+                            : root.emote-index == 2 ? @image-url("assets/sprites/emote_sleepy.png")
+                            : root.emote-index == 3 ? @image-url("assets/sprites/emote_bored.png") : @image-url("assets/sprites/emote_sad.png");
+                        colorize: root.accent; image-rendering: pixelated;
+                    }
+                    if root.active-effect && (root.effect == "pet" || root.effect == "wash"): Text {
+                        x: 0; y: 30px; width: room.width; height: 26px;
+                        text: root.effect == "pet" ? "♥" : "· ° ○ ° ·";
+                        color: root.accent; font-size: 20px; horizontal-alignment: center;
+                    }
+                    pet := PetSprite {
+                        x: (room.width - 80px) / 2 + (root.active-effect && root.effect == "play" ? (root.frame ? 12px : -12px) : 0px);
+                        y: 76px; width: 80px; height: 80px;
+                        form: root.data.ready ? root.data.form : "egg";
+                        animation: root.sprite-animation; frame: root.frame; tint: root.fg;
+                    }
+                    // One command on release, never a subprocess per mouse movement.
+                    touch := TouchArea {
+                        x: pet.x - 20px; y: 60px; width: 120px; height: 100px;
+                        enabled: root.available && !root.egg;
+                        mouse-cursor: root.washing ? crosshair : pointer;
+                        pointer-event(event) => {
+                            if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                                root.last-x = self.mouse-x; root.last-y = self.mouse-y; root.scrub = 0;
+                            }
+                            if (event.button == PointerEventButton.left && event.kind == PointerEventKind.up && root.washing) {
+                                if (root.scrub > 0) { root.send("wash " + min(25, round(root.scrub / 10))); }
+                                root.scrub = 0;
+                            }
+                        }
+                        moved => {
+                            if (self.pressed && root.washing) {
+                                root.scrub = min(250, root.scrub + abs((self.mouse-x - root.last-x) / 1px) + abs((self.mouse-y - root.last-y) / 1px));
+                                root.last-x = self.mouse-x; root.last-y = self.mouse-y;
+                            }
+                        }
+                        clicked => { if (!root.washing) { root.send("pet"); } }
+                    }
+                    Text {
+                        x: 6px; y: parent.height - 25px; width: parent.width - 12px; height: 18px;
+                        text: root.egg ? "A little patience. A little magic."
+                            : root.washing ? (touch.pressed ? "Scrubbing… " + round(root.scrub / 10) : "Hold and rub the pet · release to wash")
+                            : "Click your companion for a cuddle";
+                        color: root.muted; font-size: 10px; horizontal-alignment: center;
+                    }
+                }
+                Text { text: root.data.mood; color: root.fg; font-size: 13px; horizontal-alignment: center; height: 20px; }
+                Text { text: root.data.ready ? root.data.form-label + " · " + root.data.age : "Waiting for the provider"; color: root.muted; font-size: 10px; horizontal-alignment: center; height: 14px; }
+                VerticalLayout {
+                    spacing: 0px;
+                    for label[index] in root.labels: Gauge {
+                        label: label; value: root.data.needs[index];
+                        fg: root.fg; muted: root.muted; fill: root.overlay; accent: root.accent;
+                    }
+                }
+                Text { text: "Lower is better · Stage care " + root.data.care + "%"; color: root.muted; font-size: 9px; height: 14px; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    Button { text: "Feed"; fg: root.fg; fill: root.bg; line: root.overlay; enabled: root.available && !root.egg; clicked => { root.send("feed"); } }
+                    Button { text: root.washing ? "Done washing" : "Wash"; fg: root.washing ? root.accent : root.fg; fill: root.bg; line: root.overlay; enabled: root.available && !root.egg; clicked => { root.washing = !root.washing; root.scrub = 0; } }
+                    Button { text: "Play"; fg: root.fg; fill: root.bg; line: root.overlay; enabled: root.available && root.child-or-older; clicked => { root.send("play"); } }
+                }
+                Text { text: root.busy || root.pending ? "Saving care…" : root.egg ? "Hatches after 5 active minutes. No offline aging." : root.data.sleeping ? "Rest restores energy. Care gently wakes your pet." : "Needs grow only while Winarchy is running, outside sleep."; color: root.muted; font-size: 10px; wrap: word-wrap; min-height: 25px; }
+                if root.data.notice != "": Rectangle {
+                    min-height: 54px; background: root.surface; border-radius: 4px;
+                    HorizontalLayout {
+                        padding: 8px; spacing: 8px;
+                        Text { text: root.data.notice; color: root.accent; font-size: 11px; wrap: word-wrap; vertical-alignment: center; }
+                        Button { width: 32px; text: "×"; fg: root.muted; fill: root.surface; line: root.overlay; enabled: root.available; clicked => { root.send("dismiss-notice"); } }
+                    }
+                }
+                if root.provider-error != "": Text { text: root.provider-error; color: root.accent; font-size: 11px; wrap: word-wrap; }
+                if root.data.stage == "adult": Button {
+                    text: "Let it go…"; fg: root.muted; fill: root.bg; line: root.overlay;
+                    enabled: root.available;
+                    clicked => { root.farewell-generation = root.data.generation; root.confirming = true; }
+                }
+            }
+        }
+    }
+    if confirming: Rectangle {
+        background: root.bg.with-alpha(0.97);
+        // Block clicks to every control behind the confirmation.
+        TouchArea {}
+        VerticalLayout {
+            padding: 28px; spacing: 16px; alignment: center;
+            Text { text: "A new beginning?"; color: root.fg; font-size: 20px; horizontal-alignment: center; }
+            Text { text: "Your adult will leave and a fresh egg will begin generation " + (root.farewell-generation + 1) + ". This cannot be undone."; color: root.muted; font-size: 13px; wrap: word-wrap; horizontal-alignment: center; }
+            Button { text: "Stay a little longer"; fg: root.fg; fill: root.surface; line: root.overlay; clicked => { root.confirming = false; } }
+            Button { text: "Say goodbye"; fg: root.accent; fill: root.bg; line: root.overlay; enabled: !root.busy && !root.pending; clicked => { root.send("farewell " + root.farewell-generation); root.confirming = false; } }
+        }
+    }
+}

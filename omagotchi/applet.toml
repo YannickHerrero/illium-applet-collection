@@ -1,0 +1,6 @@
+# The installer replaces this with the absolute Windows executable path.
+command = ["omagotchi.exe"]
+icon = "{icon}"
+interval = "30s"
+focusable = true
+popup = { width = 410, height = 610 }
