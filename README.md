@@ -2,6 +2,18 @@
 
 Optional, independently installed applets for [Winarchy](https://github.com/YannickHerrero/winarchy). This repository does not modify or vendor the Winarchy engine.
 
+## Calendar Agenda
+
+[`calendar-agenda/`](calendar-agenda/README.md) adds an independent, read-only monthly
+agenda with per-calendar visibility checkboxes and meeting links. Classic Outlook
+COM is the first connector; the data contract and cache support multiple connections.
+Proton Calendar is not yet implemented. The built-in calendar and date click stay
+unchanged. Requires an already configured classic Outlook profile, not Graph or admin rights.
+
+```sh
+python3 -B calendar-agenda/install.py --windows-home /mnt/c/Users/<WindowsUser>
+```
+
 ## Activity Monitor
 
 [`activity-monitor/`](activity-monitor/README.md) combines the CPU and RAM bar modules into a themed Windows dashboard: real resource histories, network/disk rates, local storage and a searchable process table with identity-checked termination. A small native Rust collector runs without admin rights or a permanent service. CPU/RAM continue at a slower cadence while closed; process and I/O enumeration stop.
