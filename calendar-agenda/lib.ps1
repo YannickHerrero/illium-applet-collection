@@ -116,5 +116,8 @@ function ConvertTo-AgendaView($Snapshots, $Connections, $State, $Statuses, [date
         }
         $rows += @{ key = $item.key; title = (Limit-AgendaText $event.title); location = (Limit-AgendaText $event.location 100); time = $time; calendar = $item.calendar; color = $item.color; ongoing = $ongoing; join = (Test-AgendaMeetingUrl $event.meeting_url) }
     }
-    return @{ month = $month.ToString('MMMM yyyy', [cultureinfo]'en-US'); day = $day.ToString('dddd, MMMM d', [cultureinfo]'en-US'); weeks = $weeks; calendars = $calendars; events = $rows; statuses = @($Statuses); more = [Math]::Max(0, $selected.Count - $rows.Count); empty = $rows.Count -eq 0 }
+    $yearStart = [datetime]::new($Now.Year, 1, 1)
+    $yearProgress = 100 * ($Now - $yearStart).TotalDays / ($yearStart.AddYears(1) - $yearStart).TotalDays
+    $warnings = @($Statuses | Where-Object { $_.stale -or $_.message -like '*results limited*' } | ForEach-Object { $_.name + ': ' + $_.message })
+    return @{ today_header = $Now.ToString('MMMM d', [cultureinfo]'en-US'); current_year = $Now.Year; year_progress = $yearProgress; notice = ($warnings -join ' / '); month = $month.ToString('MMMM yyyy', [cultureinfo]'en-US'); day = $day.ToString('dddd, MMMM d', [cultureinfo]'en-US'); weeks = $weeks; calendars = $calendars; events = $rows; statuses = @($Statuses); more = [Math]::Max(0, $selected.Count - $rows.Count); empty = $rows.Count -eq 0 }
 }

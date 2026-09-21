@@ -14,6 +14,15 @@ $calendar = @{id='main';name='Calendar'}
 $event = @{id='occurrence';calendar_id='main';title='Réunion 日本語';location='Room';all_day=$true;start='2026-09-12';end='2026-09-13';meeting_url=$meeting}
 $snapshots = @{work=@{calendars=@($calendar);events=@($event)};home=@{calendars=@($calendar);events=@($event)}}
 $view = ConvertTo-AgendaView $snapshots $connections $state @() ([datetime]'2026-09-12T12:00:00')
+Assert ($view.today_header -eq 'September 12' -and $view.current_year -eq 2026) 'header uses today, not selected calendar date'
+Assert ([math]::Abs($view.year_progress - (254.5 / 365 * 100)) -lt 0.00001) 'elapsed current year includes time of day'
+Assert ($view.notice -eq '') 'healthy sources need no persistent status footer'
+$yearStartView = ConvertTo-AgendaView @{} @() $state @() ([datetime]'2024-01-01T00:00:00')
+Assert ($yearStartView.year_progress -eq 0 -and $yearStartView.current_year -eq 2024) 'new year resets progress'
+$leapView = ConvertTo-AgendaView @{} @() $state @() ([datetime]'2024-07-02T00:00:00')
+Assert ($leapView.year_progress -eq 50 -and $leapView.today_header -eq 'July 2') 'leap year has 366 days and header ignores browsed month'
+$yearEndView = ConvertTo-AgendaView @{} @() $state @() ([datetime]'2024-12-31T23:59:59')
+Assert ($yearEndView.year_progress -lt 100 -and $yearEndView.year_progress -gt 99) 'progress does not reach 100 early'
 Assert ($view.events.Count -eq 2) 'must not deduplicate across sources'
 Assert ($view.weeks.Count -eq 6 -and $view.weeks[0].Count -eq 7) '42 cell grid'
 Assert ($view.events[0].title -eq 'Réunion 日本語') 'Unicode preserved'
@@ -36,6 +45,9 @@ Assert ($view.empty -and $view.events.Count -eq 0) 'all sources hidden'
 $state.hidden = @()
 $view = ConvertTo-AgendaView @{work=$snapshots.work} $connections $state @(@{name='Home';message='Unavailable';stale=$true})
 Assert ($view.events.Count -eq 1 -and $view.statuses[0].stale) 'source failure isolation'
+Assert ($view.notice -eq 'Home: Unavailable') 'source failures remain visible without a footer'
+$limited = ConvertTo-AgendaView @{} @() $state @(@{name='Work';message='Read locally - results limited';stale=$false})
+Assert ($limited.notice -like '*results limited*') 'truncation remains visible without a footer'
 $colorBefore = $view.calendars[0].color
 $withOther = ConvertTo-AgendaView $snapshots $connections $state @()
 Assert ($colorBefore -eq $withOther.calendars[0].color) 'colors stable across connection failures'

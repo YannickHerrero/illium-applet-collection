@@ -41,11 +41,14 @@ A multiline `right` array requires manually adding `calendar-agenda` first.
 ## Use
 
 - Click the new agenda icon, not the existing date.
+- The header shows today's local date and progress through the current year (including
+  leap years). The percentage is completed whole percent; browsing another month does
+  not change this indicator.
 - Previous/next month, Today and day cells choose the displayed agenda.
 - Check/uncheck calendars to filter **both** daily rows and month markers. Choices
   persist; hiding does not disconnect or delete a calendar. Calendars are grouped
   by connection and have stable theme-derived colors (colors can repeat).
-- Refresh forces a read. Opening the popup requests cached data or a refresh when
+- The refresh arrow forces a read (an ellipsis means a read is running). Opening the popup requests cached data or a refresh when
   older than five minutes. Background polling also happens every five minutes.
 - Join meeting opens the validated Teams HTTPS link via Windows' registered URL
   handler; the browser/Teams decides whether to open the app. This button does not
@@ -57,9 +60,10 @@ removed occurrences, rather than treating recurring series as individual meeting
 Overlapping events that start before the grid/day are included. Invitations duplicated
 across providers are intentionally not merged.
 
-`Read locally` is the time we read Outlook, **not proof that Outlook synchronized
-with Exchange**. A failed source retains its matching cached range and is marked
-stale; other sources remain usable. Navigation to an uncached range never displays
+Healthy sources have no persistent status footer. Failures, stale data and limited
+results produce a compact warning below the header. Any `Read locally` time in a
+warning is when we read Outlook, **not proof that Outlook synchronized with Exchange**.
+A failed source retains its matching cached range; other sources remain usable. Navigation to an uncached range never displays
 an old month's events as if they belonged to the new month. Selection stays on the
 chosen date until you choose another day/Today, including across midnight.
 

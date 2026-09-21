@@ -42,10 +42,10 @@ cells = []
 for i in range(42):
     day = start + datetime.timedelta(days=i)
     cells.append(dict(day=day.day, date=day.isoformat(), current=day.month == 9, today=day.day == 12 and day.month == 9, selected=day.day == 12 and day.month == 9, count=2 if i % 3 == 0 else 0))
-data = dict(month='September 2026', day='Saturday, September 12', weeks=[cells[i:i+7] for i in range(0, 42, 7)],
+data = dict(**{'today-header': 'September 12', 'current-year': 2026, 'year-progress': 69.73, 'notice': ''}, month='September 2026', day='Saturday, September 12', weeks=[cells[i:i+7] for i in range(0, 42, 7)],
             calendars=[dict(key='a'*64, name='Calendar', connection='Outlook', visible=True, color=0), dict(key='b'*64, name='Personal · fixture only', connection='Second source', visible=True, color=2), dict(key='c'*64, name='Family', connection='Second source', visible=False, color=3)],
             events=[dict(key='d'*64, title='Weekly planning · Réunion', location='Room 201', time='09:00 - 10:00', calendar='Calendar', color=0, ongoing=True, join=True), dict(key='e'*64, title='A very long event title that should truncate without pushing the controls out of the popup', location='A very long room description / Building 4 / Floor 12', time='All day', calendar='Personal', color=2, ongoing=False, join=False)],
-            statuses=[dict(name='Outlook', message='Read locally Sep 12 09:30', stale=False), dict(name='Second source', message='Synthetic fixture, not a Proton integration', stale=False)], more=0, empty=False)
+            more=0, empty=False)
 empty = copy.deepcopy(data)
 empty.update(events=[], empty=True)
 for calendar in empty['calendars']:
@@ -54,7 +54,7 @@ for week in empty['weeks']:
     for cell in week:
         cell['count'] = 0
 failed = copy.deepcopy(data)
-failed['statuses'][1].update(message='Calendar unavailable. Using cached data.', stale=True)
+failed['notice'] = 'Second source: Calendar unavailable. Using cached data.'
 light = dict(bg='#eff1f5', surface='#e6e9ef', overlay='#ccd0da', fg='#4c4f69', muted='#6c6f85', accent='#8839ef')
 fixtures = [('dark', dict(data=data)), ('light', dict(light, data=data)), ('scale-150', dict(data=data)), ('empty', dict(data=empty)), ('busy', dict(data=data, busy=True)), ('failed-source', dict(data=failed)), ('initial-error', {'provider-error': 'Synthetic failure'})]
 for name, values in fixtures:
@@ -79,12 +79,12 @@ for name, values in fixtures:
                     raise AssertionError(f'{name}: no frame rendered')
                 image.save(output / (name + '.png'))
                 if name in ('dark', 'busy'):
-                    for point in [(25, 433), (392, 75), (367, 180), (75, 619)]:
+                    for point in [(25, 487), (332, 129), (367, 234), (75, 673), (446, 129)]:
                         click(*point)
                     if name == 'busy':
                         assert not action_log.exists(), 'Busy controls must not queue duplicate actions'
                     else:
-                        assert action_log.read_text().splitlines() == ['toggle ' + 'b'*64, 'month 1', 'day 2026-09-12', 'join ' + 'd'*64]
+                        assert action_log.read_text().splitlines() == ['toggle ' + 'b'*64, 'month 1', 'day 2026-09-12', 'join ' + 'd'*64, 'refresh']
             finally:
                 process.terminate()
                 process.wait(timeout=5)

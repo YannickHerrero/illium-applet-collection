@@ -3,8 +3,7 @@ import { ScrollView } from "std-widgets.slint";
 struct Cell { day: int, date: string, current: bool, today: bool, selected: bool, count: int }
 struct Calendar { key: string, name: string, connection: string, visible: bool, color: int }
 struct Event { key: string, title: string, location: string, time: string, calendar: string, color: int, ongoing: bool, join: bool }
-struct Status { name: string, message: string, stale: bool }
-struct Data { month: string, day: string, weeks: [[Cell]], calendars: [Calendar], events: [Event], statuses: [Status], more: int, empty: bool }
+struct Data { today-header: string, current-year: int, year-progress: float, notice: string, month: string, day: string, weeks: [[Cell]], calendars: [Calendar], events: [Event], more: int, empty: bool }
 
 component AgendaButton inherits Rectangle {
     in property <string> label;
@@ -63,17 +62,37 @@ export component View inherits Window {
             padding: 18px;
             spacing: 10px;
             HorizontalLayout {
-                height: 32px;
-                Text { text: "AGENDA"; color: root.accent; font-size: 13px; font-weight: 700; vertical-alignment: center; }
-                Text { text: root.busy ? "Refreshing…" : "Read only"; color: root.muted; font-size: 11px; horizontal-alignment: right; vertical-alignment: center; }
-                AgendaButton { label: "Refresh"; width: 72px; ink: root.fg; fill: root.overlay; enabled: !root.busy; clicked => { root.action("refresh"); } }
+                height: 58px;
+                spacing: 14px;
+                Image { width: 36px; height: 58px; source: @image-url("icon.svg"); image-fit: contain; colorize: root.accent; }
+                Text { text: root.data.today-header == "" ? "Calendar" : root.data.today-header; color: root.accent; font-size: 36px; font-weight: 600; vertical-alignment: center; overflow: elide; }
+            }
+            HorizontalLayout {
+                height: 18px;
+                spacing: 12px;
+                Text { width: 36px; text: root.data.current-year > 0 ? "\{root.data.current-year}" : ""; color: root.muted; font-size: 10px; vertical-alignment: center; }
+                Rectangle {
+                    Rectangle {
+                        x: 0px; y: (parent.height - self.height) / 2;
+                        height: 4px; width: parent.width;
+                        background: root.surface;
+                        Rectangle { x: 0px; y: 0px; height: parent.height; width: parent.width * clamp(root.data.year-progress / 100, 0, 1); background: root.accent; }
+                    }
+                }
+                Text { width: 32px; text: root.data.current-year > 0 ? "\{floor(root.data.year-progress)}%" : ""; color: root.muted; font-size: 10px; horizontal-alignment: right; vertical-alignment: center; }
+            }
+            if root.provider-error != "" || root.data.notice != "": Text {
+                text: root.provider-error != "" ? "Refresh failed. Check the applet configuration." : root.data.notice;
+                color: root.accent; font-size: 11px; overflow: elide;
             }
             HorizontalLayout {
                 height: 32px;
+                spacing: 6px;
                 AgendaButton { label: "‹"; width: 32px; ink: root.fg; fill: root.overlay; enabled: !root.busy; clicked => { root.action("month -1"); } }
-                Text { text: root.data.month; color: root.fg; font-size: 21px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: root.data.month; color: root.muted; font-size: 13px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
                 AgendaButton { label: "›"; width: 32px; ink: root.fg; fill: root.overlay; enabled: !root.busy; clicked => { root.action("month 1"); } }
                 AgendaButton { label: "Today"; width: 54px; ink: root.accent; fill: root.overlay; enabled: !root.busy; clicked => { root.action("today"); } }
+                AgendaButton { label: root.busy ? "…" : "↻"; accessible-label: "Refresh"; width: 32px; ink: root.muted; fill: root.overlay; enabled: !root.busy; clicked => { root.action("refresh"); } }
             }
             HorizontalLayout {
                 height: 18px;
@@ -146,15 +165,6 @@ export component View inherits Window {
                     }
                     if root.data.empty: Text { text: "No events in visible calendars"; color: root.muted; font-size: 12px; }
                     if root.data.more > 0: Text { text: "\{root.data.more} more events — open the source calendar to see all"; color: root.muted; font-size: 11px; wrap: word-wrap; }
-                }
-            }
-            ScrollView {
-                height: 48px;
-                viewport-width: self.width;
-                VerticalLayout {
-                    spacing: 3px;
-                    for status in root.data.statuses: Text { text: status.name + ": " + (status.stale ? "[stale] " : "") + status.message; color: status.stale ? root.accent : root.muted; font-size: 10px; wrap: word-wrap; }
-                    if root.provider-error != "": Text { text: "Refresh failed. Check the applet configuration."; color: root.accent; font-size: 11px; }
                 }
             }
         }
