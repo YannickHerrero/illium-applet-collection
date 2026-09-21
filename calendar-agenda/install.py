@@ -12,7 +12,7 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parent
 NAME = 'calendar-agenda'
-FILES = ('applet.toml', 'icon.svg', 'view.slint', 'agenda.ps1', 'lib.ps1',
+FILES = ('applet.toml', 'icon.svg', 'refresh.svg', 'view.slint', 'agenda.ps1', 'lib.ps1',
          'worker.ps1', 'connectors/outlook.ps1', 'README.md')
 
 

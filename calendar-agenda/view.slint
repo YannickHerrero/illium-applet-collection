@@ -1,33 +1,39 @@
 import { ScrollView } from "std-widgets.slint";
 
-struct Cell { day: int, date: string, current: bool, today: bool, selected: bool, count: int }
-struct Calendar { key: string, name: string, connection: string, visible: bool, color: int }
+struct Cell { day: int, date: string, current: bool, today: bool, selected: bool, count: int, markers: [int] }
+struct Calendar { key: string, name: string, label: string, connection: string, visible: bool, color: int }
 struct Event { key: string, title: string, location: string, time: string, calendar: string, color: int, ongoing: bool, join: bool }
-struct Data { today-header: string, current-year: int, year-progress: float, notice: string, month: string, day: string, weeks: [[Cell]], calendars: [Calendar], events: [Event], more: int, empty: bool }
+struct Data { today-header: string, current-year: int, year-progress: float, notice: string, month: string, day: string, day-short: string, day-count: int, all-visible: bool, week-numbers: [int], weeks: [[Cell]], calendars: [Calendar], events: [Event], more: int, empty: bool }
 
 component AgendaButton inherits Rectangle {
     in property <string> label;
     in property <color> ink;
     in property <color> fill;
     in property <bool> enabled: true;
+    in property <bool> outlined: false;
+    in property <bool> icon-only: false;
+    in property <image> icon;
     callback clicked();
-    min-width: 32px;
-    height: 30px;
+    height: 20px;
     background: touch.has-hover && root.enabled ? root.fill : transparent;
-    border-width: 1px;
+    border-width: root.outlined ? 1px : 0px;
     border-color: root.fill;
     accessible-role: button;
     accessible-label: root.label;
-    Text { text: root.label; color: root.ink; font-size: 12px; horizontal-alignment: center; vertical-alignment: center; }
+    if !root.icon-only: Text { text: root.label; color: root.ink; font-size: 9px; horizontal-alignment: center; vertical-alignment: center; }
+    if root.icon-only: Image { x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; width: 12px; height: 12px; source: root.icon; colorize: root.ink; }
     touch := TouchArea { enabled: root.enabled; mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
 export component View inherits Window {
     no-frame: true;
-    in property <length> popup-width: 480px;
-    in property <length> popup-height: 780px;
+    in property <length> popup-width: 440px;
+    in property <length> popup-height: 820px;
     width: popup-width;
     height: popup-height;
+    // Installed with the user's Scoop font pack; Windows falls back if unavailable.
+    default-font-family: "JetBrainsMono NFM";
+    default-font-size: 10px;
     in property <color> bg: #1e1e2e;
     in property <color> surface: #313244;
     in property <color> overlay: #45475a;
@@ -39,9 +45,7 @@ export component View inherits Window {
     in property <string> provider-error;
     in property <Data> data;
     callback action(string);
-    private property <bool> sources-expanded: true;
     private property <bool> was-open: false;
-    // Opening requests the provider; its cache suppresses unnecessary COM reads.
     changed open => {
         if root.open && !root.was-open { root.action(""); }
         root.was-open = root.open;
@@ -57,114 +61,129 @@ export component View inherits Window {
     background: root.bg;
     Rectangle {
         border-width: 1px;
-        border-color: root.overlay;
+        border-color: root.accent.mix(root.overlay, 0.6);
         VerticalLayout {
-            padding: 18px;
-            spacing: 10px;
+            padding-left: 50px; padding-right: 50px;
+            padding-top: 20px; padding-bottom: 16px;
+            spacing: 6px;
             HorizontalLayout {
-                height: 58px;
+                height: 52px;
                 spacing: 14px;
-                Image { width: 36px; height: 58px; source: @image-url("icon.svg"); image-fit: contain; colorize: root.accent; }
-                Text { text: root.data.today-header == "" ? "Calendar" : root.data.today-header; color: root.accent; font-size: 36px; font-weight: 600; vertical-alignment: center; overflow: elide; }
+                Image { width: 30px; height: 52px; source: @image-url("icon.svg"); image-fit: contain; colorize: root.fg; }
+                Text { text: root.data.today-header == "" ? "Calendar" : root.data.today-header; color: root.fg; font-size: 38px; font-weight: 600; vertical-alignment: center; overflow: elide; }
             }
             HorizontalLayout {
-                height: 18px;
-                spacing: 12px;
-                Text { width: 36px; text: root.data.current-year > 0 ? "\{root.data.current-year}" : ""; color: root.muted; font-size: 10px; vertical-alignment: center; }
+                height: 16px;
+                spacing: 10px;
+                Text { width: 26px; text: root.data.current-year > 0 ? "\{root.data.current-year}" : ""; color: root.muted; font-size: 8px; vertical-alignment: center; }
                 Rectangle {
                     Rectangle {
                         x: 0px; y: (parent.height - self.height) / 2;
                         height: 4px; width: parent.width;
                         background: root.surface;
-                        Rectangle { x: 0px; y: 0px; height: parent.height; width: parent.width * clamp(root.data.year-progress / 100, 0, 1); background: root.accent; }
+                        Rectangle { x: 0px; y: 0px; height: parent.height; width: parent.width * clamp(root.data.year-progress / 100, 0, 1); background: root.fg; }
                     }
                 }
-                Text { width: 32px; text: root.data.current-year > 0 ? "\{floor(root.data.year-progress)}%" : ""; color: root.muted; font-size: 10px; horizontal-alignment: right; vertical-alignment: center; }
+                Text { width: 26px; text: root.data.current-year > 0 ? "\{floor(root.data.year-progress)}%" : ""; color: root.muted; font-size: 8px; horizontal-alignment: right; vertical-alignment: center; }
             }
+            Rectangle { height: 8px; }
             if root.provider-error != "" || root.data.notice != "": Text {
                 text: root.provider-error != "" ? "Refresh failed. Check the applet configuration." : root.data.notice;
-                color: root.accent; font-size: 11px; overflow: elide;
+                color: root.accent; font-size: 9px; overflow: elide;
             }
             HorizontalLayout {
-                height: 32px;
-                spacing: 6px;
-                AgendaButton { label: "‹"; width: 32px; ink: root.fg; fill: root.overlay; enabled: !root.busy; clicked => { root.action("month -1"); } }
-                Text { text: root.data.month; color: root.muted; font-size: 13px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                AgendaButton { label: "›"; width: 32px; ink: root.fg; fill: root.overlay; enabled: !root.busy; clicked => { root.action("month 1"); } }
-                AgendaButton { label: "Today"; width: 54px; ink: root.accent; fill: root.overlay; enabled: !root.busy; clicked => { root.action("today"); } }
-                AgendaButton { label: root.busy ? "…" : "↻"; accessible-label: "Refresh"; width: 32px; ink: root.muted; fill: root.overlay; enabled: !root.busy; clicked => { root.action("refresh"); } }
-            }
-            HorizontalLayout {
-                height: 18px;
-                for name in ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]: Text { text: name; color: root.muted; font-size: 10px; horizontal-alignment: center; }
+                height: 12px;
+                spacing: 2px;
+                Text { width: 26px; text: "W"; color: root.muted; font-size: 8px; horizontal-alignment: center; }
+                for name in ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]: Text { text: name; color: root.muted; font-size: 8px; horizontal-alignment: center; }
             }
             VerticalLayout {
-                height: 216px;
+                height: 174px;
                 spacing: 2px;
-                for week in root.data.weeks: HorizontalLayout {
+                for week[index] in root.data.weeks: HorizontalLayout {
                     spacing: 2px;
+                    Text { width: 26px; text: "\{root.data.week-numbers[index]}"; color: root.muted; font-size: 8px; horizontal-alignment: center; vertical-alignment: center; }
                     for cell in week: Rectangle {
-                        background: cell.selected ? root.surface : (day-touch.has-hover ? root.overlay : transparent);
+                        background: day-touch.has-hover ? root.surface : transparent;
                         border-width: cell.today || cell.selected ? 1px : 0px;
-                        border-color: cell.today ? root.accent : root.overlay;
+                        border-color: cell.selected ? root.fg.mix(root.bg, 0.35) : root.overlay;
                         accessible-role: button;
                         accessible-label: cell.date;
-                        Text { y: 3px; height: 22px; text: "\{cell.day}"; color: cell.current ? root.fg : root.muted; font-size: 12px; horizontal-alignment: center; vertical-alignment: center; }
-                        if cell.count > 0: Rectangle { width: 4px; height: 4px; border-radius: 2px; x: (parent.width - self.width) / 2; y: parent.height - 7px; background: root.accent; }
+                        Text { y: 1px; height: 17px; text: "\{cell.day}"; color: cell.current ? root.fg : root.muted.mix(root.bg, 0.5); font-size: 9px; horizontal-alignment: center; vertical-alignment: center; }
+                        HorizontalLayout {
+                            y: parent.height - 7px; x: (parent.width - self.width) / 2;
+                            width: cell.markers.length * 5px; height: 3px; spacing: 2px;
+                            for marker in cell.markers: Rectangle { width: 3px; height: 3px; border-radius: 1px; background: root.source-color(marker); }
+                        }
                         day-touch := TouchArea { enabled: !root.busy; mouse-cursor: pointer; clicked => { root.action("day " + cell.date); } }
                     }
                 }
             }
-            AgendaButton { label: root.sources-expanded ? "Calendars ▾" : "Calendars ▸"; ink: root.muted; fill: root.overlay; clicked => { root.sources-expanded = !root.sources-expanded; } }
-            if root.sources-expanded: ScrollView {
-                height: 88px;
-                viewport-width: self.width;
-                VerticalLayout {
-                    spacing: 3px;
+            HorizontalLayout {
+                height: 24px;
+                AgendaButton { label: "‹"; accessible-label: "Previous month"; width: 18px; ink: root.muted; fill: root.surface; enabled: !root.busy; clicked => { root.action("month -1"); } }
+                Text { text: root.data.month; color: root.muted; font-size: 9px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
+                AgendaButton { label: "›"; accessible-label: "Next month"; width: 18px; ink: root.muted; fill: root.surface; enabled: !root.busy; clicked => { root.action("month 1"); } }
+            }
+            Rectangle { height: 1px; background: root.overlay; }
+            HorizontalLayout {
+                height: 22px;
+                spacing: 6px;
+                Text { text: root.data.day-short; color: root.fg; font-size: 9px; font-weight: 600; vertical-alignment: center; horizontal-stretch: 0; }
+                Rectangle {
+                    width: 20px; height: 14px; background: root.surface;
+                    Text { text: "\{root.data.day-count}"; color: root.muted; font-size: 8px; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                AgendaButton { label: "Today"; width: 36px; ink: root.muted; fill: root.surface; enabled: !root.busy; clicked => { root.action("today"); } }
+                AgendaButton { label: "Refresh"; icon-only: true; icon: @image-url("refresh.svg"); width: 20px; ink: root.busy ? root.overlay : root.muted; fill: root.surface; enabled: !root.busy; clicked => { root.action("refresh"); } }
+            }
+            // Horizontal, scrollable checkbox chips replace the tall source panel.
+            Flickable {
+                height: 24px;
+                viewport-height: self.height;
+                viewport-width: chips.preferred-width;
+                interactive: true;
+                chips := HorizontalLayout {
+                    width: self.preferred-width; height: 20px; spacing: 4px;
+                    AgendaButton { label: "All"; width: 28px; height: 18px; outlined: true; ink: root.data.all-visible ? root.fg : root.muted; fill: root.data.all-visible ? root.muted : root.overlay; enabled: !root.busy; clicked => { root.action("show-all"); } }
                     for calendar in root.data.calendars: Rectangle {
-                        height: 25px;
+                        width: min(142px, chip-label.preferred-width + 22px); height: 18px;
+                        border-width: 1px;
+                        border-color: calendar.visible ? root.muted : root.overlay;
+                        background: chip-touch.has-hover ? root.surface : transparent;
                         accessible-role: checkbox;
                         accessible-label: calendar.connection + ": " + calendar.name;
                         accessible-checked: calendar.visible;
-                        HorizontalLayout {
-                            spacing: 8px;
-                            Rectangle {
-                                width: 18px; height: 18px;
-                                border-width: 1px; border-color: root.source-color(calendar.color);
-                                background: calendar.visible ? root.source-color(calendar.color) : transparent;
-                                Text { text: calendar.visible ? "✓" : ""; color: root.bg; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
-                            }
-                            Text { text: calendar.connection + " / " + calendar.name; color: calendar.visible ? root.fg : root.muted; overflow: elide; font-size: 12px; }
-                        }
-                        TouchArea { enabled: !root.busy; mouse-cursor: pointer; clicked => { root.action("toggle " + calendar.key); } }
+                        Rectangle { x: 5px; y: 6px; width: 5px; height: 5px; background: calendar.visible ? root.source-color(calendar.color) : transparent; border-width: 1px; border-color: root.source-color(calendar.color); }
+                        chip-label := Text { x: 14px; y: 0px; width: parent.width - 19px; height: parent.height; text: calendar.label; color: calendar.visible ? root.fg : root.muted; font-size: 8px; vertical-alignment: center; overflow: elide; }
+                        chip-touch := TouchArea { enabled: !root.busy; mouse-cursor: pointer; clicked => { root.action("toggle " + calendar.key); } }
                     }
-                    if root.data.calendars.length == 0: Text { text: "No calendars available"; color: root.muted; font-size: 12px; }
                 }
             }
-            Rectangle { height: 1px; background: root.overlay; }
-            Text { text: root.data.day; color: root.fg; font-size: 13px; font-weight: 600; }
             ScrollView {
                 vertical-stretch: 1;
                 viewport-width: self.width;
+                horizontal-scrollbar-policy: always-off;
                 VerticalLayout {
-                    spacing: 7px;
+                    spacing: 4px;
                     for event in root.data.events: Rectangle {
-                        height: event.join ? 112px : 78px;
+                        height: 32px + (event.location != "" ? 12px : 0px) + (event.join ? 20px : 0px);
                         background: root.surface;
-                        Rectangle { x: 0px; y: 0px; width: 3px; height: parent.height; background: root.source-color(event.color); }
-                        VerticalLayout {
-                            padding: 9px; padding-left: 12px; spacing: 4px;
-                            Text { text: event.time + (event.ongoing ? " · NOW" : "") + " · " + event.calendar; color: event.ongoing ? root.accent : root.muted; font-size: 10px; overflow: elide; }
-                            Text { text: event.title == "" ? "(Untitled event)" : event.title; color: root.fg; font-size: 13px; font-weight: 600; overflow: elide; }
-                            Text { text: event.location; color: root.muted; font-size: 11px; overflow: elide; }
-                            if event.join: HorizontalLayout {
-                                AgendaButton { label: "Join meeting"; width: 104px; ink: root.accent; fill: root.overlay; enabled: !root.busy; clicked => { root.action("join " + event.key); } }
-                                Rectangle { horizontal-stretch: 1; }
-                            }
+                        Rectangle { x: 0px; y: 0px; width: 2px; height: parent.height; background: root.source-color(event.color); }
+                        Text { x: 8px; y: 4px; width: parent.width - 16px; height: 9px; text: event.time + " · " + event.calendar + (event.ongoing ? " · NOW" : ""); color: root.muted; font-size: 7.5px; overflow: elide; }
+                        Text { x: 8px; y: 15px; width: parent.width - 16px; height: 13px; text: event.title == "" ? "(Untitled event)" : event.title; color: root.fg; font-size: 10px; font-weight: 500; overflow: elide; }
+                        Text { visible: event.location != ""; x: 8px; y: 28px; width: parent.width - 16px; height: 12px; text: "· " + event.location; color: root.muted; font-size: 8px; vertical-alignment: center; overflow: elide; }
+                        AgendaButton {
+                            visible: event.join;
+                            x: 8px; y: 28px + (event.location != "" ? 12px : 0px);
+                            label: "Join meeting"; width: 82px; height: 16px; outlined: true;
+                            ink: root.fg; fill: root.muted; enabled: !root.busy;
+                            clicked => { root.action("join " + event.key); }
                         }
                     }
-                    if root.data.empty: Text { text: "No events in visible calendars"; color: root.muted; font-size: 12px; }
-                    if root.data.more > 0: Text { text: "\{root.data.more} more events — open the source calendar to see all"; color: root.muted; font-size: 11px; wrap: word-wrap; }
+                    if root.data.empty: Text { text: "No events in visible calendars"; color: root.muted; font-size: 9px; }
+                    if root.data.more > 0: Text { text: "\{root.data.more} more events — open the source calendar to see all"; color: root.muted; font-size: 9px; wrap: word-wrap; }
                 }
             }
         }

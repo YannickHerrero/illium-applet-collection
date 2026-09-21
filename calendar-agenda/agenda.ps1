@@ -35,6 +35,7 @@ try {
             $month = [datetime]::ParseExact($state.month, 'yyyy-MM', [cultureinfo]::InvariantCulture).AddMonths([int]$Matches[1])
             $state.month = $month.ToString('yyyy-MM'); $state.day = $month.ToString('yyyy-MM-dd')
         }
+        '^show-all$' { $state.hidden = @() }
         '^today$' { $state.month = $now.ToString('yyyy-MM'); $state.day = $now.ToString('yyyy-MM-dd') }
         '^day (\d{4}-\d{2}-\d{2})$' {
             $date = [datetime]::ParseExact($Matches[1], 'yyyy-MM-dd', [cultureinfo]::InvariantCulture)
@@ -76,7 +77,7 @@ try {
         } catch { $snapshots.Remove($connection.id); $fresh = $false }
         $snapshot = $snapshots[$connection.id]
         # UI-only actions don't trigger network/COM refreshes when a matching cache exists.
-        if (($fresh -and -not $force) -or ($Action -match '^(toggle|day|join) ' -and $null -ne $snapshot)) { continue }
+        if (($fresh -and -not $force) -or (($Action -match '^(toggle|day|join) ' -or $Action -eq 'show-all') -and $null -ne $snapshot)) { continue }
         $prefix = Join-Path $runtime ('job-' + [guid]::NewGuid().ToString('N'))
         $request = "$prefix-request.json"; $result = "$prefix-result.json"
         Write-AgendaJson $request @{ connection = $connection; start = $start; end = $end }

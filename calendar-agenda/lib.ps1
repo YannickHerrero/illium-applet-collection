@@ -15,7 +15,7 @@ function Read-AgendaJson($Path) {
 }
 function Get-AgendaWindow([datetime]$Month) {
     $first = [datetime]::new($Month.Year, $Month.Month, 1)
-    $start = $first.AddDays(-(([int]$first.DayOfWeek + 6) % 7))
+    $start = $first.AddDays(-[int]$first.DayOfWeek)
     return @{ start = $start; end = $start.AddDays(42) }
 }
 function Get-AgendaKey([string]$Connection, [string]$Id) {
@@ -53,7 +53,7 @@ function ConvertTo-AgendaView($Snapshots, $Connections, $State, $Statuses, [date
     $month = [datetime]::ParseExact($State.month, 'yyyy-MM', [cultureinfo]::InvariantCulture)
     $day = [datetime]::ParseExact($State.day, 'yyyy-MM-dd', [cultureinfo]::InvariantCulture)
     $window = Get-AgendaWindow $month
-    $calendars = @(); $events = New-Object 'Collections.Generic.List[object]'; $counts = @{}
+    $calendars = @(); $events = New-Object 'Collections.Generic.List[object]'; $counts = @{}; $markers = @{}
     foreach ($connection in $Connections) {
         $snapshot = $Snapshots[$connection.id]
         if ($null -eq $snapshot) { continue }
@@ -66,7 +66,9 @@ function ConvertTo-AgendaView($Snapshots, $Connections, $State, $Statuses, [date
             $key = Get-AgendaKey $connection.id $calendar.id
             $visible = $key -notin @($State.hidden)
             $color = [Convert]::ToInt32($key.Substring(0, 6), 16) % 6
-            $calendars += @{ key = $key; name = (Limit-AgendaText $calendar.name 70); connection = (Limit-AgendaText $connection.name 50); visible = $visible; color = $color % 6 }
+            $label = [string]$calendar.name
+            if (@($Connections).Count -gt 1) { $label = $connection.name + ' / ' + $label }
+            $calendars += @{ key = $key; name = (Limit-AgendaText $calendar.name 70); label = (Limit-AgendaText $label 70); connection = (Limit-AgendaText $connection.name 50); visible = $visible; color = $color % 6 }
             if ($visible) {
                 foreach ($event in $byCalendar[$calendar.id]) {
                     if ($event.calendar_id -eq $calendar.id) {
@@ -84,6 +86,8 @@ function ConvertTo-AgendaView($Snapshots, $Connections, $State, $Statuses, [date
                         for ($mark = $firstDay; $mark -lt $last -or ($a -eq $b -and $mark -eq $a.Date -and $mark -lt $window.end); $mark = $mark.AddDays(1)) {
                             $dateKey = $mark.ToString('yyyy-MM-dd')
                             $counts[$dateKey] = 1 + $counts[$dateKey]
+                            if (-not $markers.ContainsKey($dateKey)) { $markers[$dateKey] = @() }
+                            if ($markers[$dateKey].Count -lt 3) { $markers[$dateKey] += $color }
                         }
                         if ($a -lt $day.AddDays(1) -and ($b -gt $day -or ($a -eq $b -and $a -ge $day))) {
                             $events.Add(@{ event = $event; key = (Get-AgendaKey $connection.id $event.id); calendar = (Limit-AgendaText $calendar.name 70); color = $color; sort_start = $a })
@@ -93,13 +97,16 @@ function ConvertTo-AgendaView($Snapshots, $Connections, $State, $Statuses, [date
             }
         }
     }
-    $weeks = @()
+    $weeks = @(); $weekNumbers = @()
     for ($w = 0; $w -lt 6; $w++) {
+        # Label each Sunday-first row by the ISO week of its Thursday.
+        $thursday = $window.start.AddDays($w * 7 + 4)
+        $weekNumbers += [cultureinfo]::InvariantCulture.Calendar.GetWeekOfYear($thursday, [Globalization.CalendarWeekRule]::FirstFourDayWeek, [DayOfWeek]::Monday)
         $cells = @()
         for ($d = 0; $d -lt 7; $d++) {
             $date = $window.start.AddDays($w * 7 + $d)
             $count = [int]$counts[$date.ToString('yyyy-MM-dd')]
-            $cells += @{ day = $date.Day; date = $date.ToString('yyyy-MM-dd'); current = $date.Month -eq $month.Month; today = $date.Date -eq $Now.Date; selected = $date.Date -eq $day.Date; count = $count }
+            $cells += @{ day = $date.Day; date = $date.ToString('yyyy-MM-dd'); current = $date.Month -eq $month.Month; today = $date.Date -eq $Now.Date; selected = $date.Date -eq $day.Date; count = $count; markers = @(if ($markers.ContainsKey($date.ToString('yyyy-MM-dd'))) { $markers[$date.ToString('yyyy-MM-dd')] }) }
         }
         $weeks += ,$cells
     }
@@ -119,5 +126,5 @@ function ConvertTo-AgendaView($Snapshots, $Connections, $State, $Statuses, [date
     $yearStart = [datetime]::new($Now.Year, 1, 1)
     $yearProgress = 100 * ($Now - $yearStart).TotalDays / ($yearStart.AddYears(1) - $yearStart).TotalDays
     $warnings = @($Statuses | Where-Object { $_.stale -or $_.message -like '*results limited*' } | ForEach-Object { $_.name + ': ' + $_.message })
-    return @{ today_header = $Now.ToString('MMMM d', [cultureinfo]'en-US'); current_year = $Now.Year; year_progress = $yearProgress; notice = ($warnings -join ' / '); month = $month.ToString('MMMM yyyy', [cultureinfo]'en-US'); day = $day.ToString('dddd, MMMM d', [cultureinfo]'en-US'); weeks = $weeks; calendars = $calendars; events = $rows; statuses = @($Statuses); more = [Math]::Max(0, $selected.Count - $rows.Count); empty = $rows.Count -eq 0 }
+    return @{ today_header = $Now.ToString('MMMM d', [cultureinfo]'en-US'); current_year = $Now.Year; year_progress = $yearProgress; notice = ($warnings -join ' / '); month = $month.ToString('MMMM yyyy', [cultureinfo]'en-US').ToUpperInvariant(); day = $day.ToString('dddd, MMMM d', [cultureinfo]'en-US'); day_short = $day.ToString('ddd, MMM d', [cultureinfo]'en-US').ToUpperInvariant(); day_count = $selected.Count; all_visible = @($calendars | Where-Object { -not $_.visible }).Count -eq 0; week_numbers = $weekNumbers; weeks = $weeks; calendars = $calendars; events = $rows; statuses = @($Statuses); more = [Math]::Max(0, $selected.Count - $rows.Count); empty = $rows.Count -eq 0 }
 }

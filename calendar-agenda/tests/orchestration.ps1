@@ -32,6 +32,8 @@ try {
     Assert ($filtered.events.Count -eq 1) 'cached filter'
     $persisted = Invoke-FixtureAgenda
     Assert (-not $persisted.calendars[1].visible) 'visibility persisted across provider processes'
+    $all = Invoke-FixtureAgenda 'show-all'
+    Assert ($all.all_visible -and $all.events.Count -eq 2) 'All chip restores hidden calendars'
     # A corrupt source cache must not discard the other source.
     Write-AgendaJson (Join-Path $runtime 'cache-stale.json') @{unexpected='fixture'}
     $partial = Invoke-FixtureAgenda

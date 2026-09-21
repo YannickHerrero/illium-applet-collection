@@ -25,13 +25,22 @@ $yearEndView = ConvertTo-AgendaView @{} @() $state @() ([datetime]'2024-12-31T23
 Assert ($yearEndView.year_progress -lt 100 -and $yearEndView.year_progress -gt 99) 'progress does not reach 100 early'
 Assert ($view.events.Count -eq 2) 'must not deduplicate across sources'
 Assert ($view.weeks.Count -eq 6 -and $view.weeks[0].Count -eq 7) '42 cell grid'
+Assert ($view.weeks[0][0].date -eq '2026-08-30') 'reference layout uses a Sunday-first grid'
+Assert (($view.week_numbers -join ',') -eq '36,37,38,39,40,41') 'ISO week labels use Thursday of each row'
+Assert ($view.day_short -eq 'SAT, SEP 12' -and $view.day_count -eq 2 -and $view.all_visible) 'compact day heading and all-selected state'
+Assert ($view.calendars[0].label -eq 'Work / Calendar') 'multiple connections retain source identity on chips'
+$boundaryState = [pscustomobject]@{month='2021-01';day='2021-01-01';hidden=@()}
+$boundary = ConvertTo-AgendaView @{} @() $boundaryState @()
+Assert ($boundary.week_numbers[0] -eq 53 -and $boundary.week_numbers[1] -eq 1) 'ISO week numbering across new year'
+Assert ($boundary.weeks[0][0].markers.Count -eq 0) 'empty days never emit null markers'
 Assert ($view.events[0].title -eq 'Réunion 日本語') 'Unicode preserved'
 Assert ($view.events[0].key -ne $view.events[1].key) 'qualified occurrence identities'
 $state.hidden = @((Get-AgendaKey 'home' 'main'))
 $view = ConvertTo-AgendaView $snapshots $connections $state @()
 Assert ($view.events.Count -eq 1) 'checkbox filters agenda'
 $cell = @($view.weeks | ForEach-Object { $_ } | Where-Object { $_.date -eq '2026-09-12' })[0]
-Assert ($cell.count -eq 1) 'checkbox filters month markers'
+Assert ($cell.count -eq 1 -and $cell.markers.Count -eq 1) 'checkbox filters month markers'
+Assert (-not $view.all_visible) 'partial selection clears All indicator'
 Assert (-not (Test-AgendaOverlap $event ([datetime]'2026-09-13') ([datetime]'2026-09-14'))) 'all-day exclusive end'
 $timed = @{all_day=$false;start='2026-09-11T23:00:00+00:00';end='2026-09-13T02:00:00+00:00'}
 Assert (Test-AgendaOverlap $timed ([datetime]'2026-09-12') ([datetime]'2026-09-13')) 'multi-day overlap'
@@ -54,6 +63,8 @@ Assert ($colorBefore -eq $withOther.calendars[0].color) 'colors stable across co
 $many = @(); for ($i=0; $i -lt 55; $i++) { $copy = $event.Clone(); $copy.id = "event-$i"; $many += $copy }
 $large = ConvertTo-AgendaView @{work=@{calendars=@($calendar);events=$many}} $connections $state @()
 Assert ($large.events.Count -eq 40 -and $large.more -eq 15) 'daily row cap reports omitted items'
+$marked = @($large.weeks | ForEach-Object { $_ } | Where-Object { $_.date -eq '2026-09-12' })[0]
+Assert ($marked.count -eq 55 -and $marked.markers.Count -eq 3) 'at most three event dots per day without losing the total count'
 $emptySnapshot = ConvertTo-AgendaView @{work=@{calendars=@($calendar);events=@()}} $connections $state @()
 Assert ($emptySnapshot.empty -and $emptySnapshot.calendars.Count -eq 1) 'empty calendars remain selectable'
 $temp = Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString('N') + '.json')

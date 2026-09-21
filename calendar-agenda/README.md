@@ -44,11 +44,18 @@ A multiline `right` array requires manually adding `calendar-agenda` first.
 - The header shows today's local date and progress through the current year (including
   leap years). The percentage is completed whole percent; browsing another month does
   not change this indicator.
-- Previous/next month, Today and day cells choose the displayed agenda.
-- Check/uncheck calendars to filter **both** daily rows and month markers. Choices
-  persist; hiding does not disconnect or delete a calendar. Calendars are grouped
-  by connection and have stable theme-derived colors (colors can repeat).
-- The refresh arrow forces a read (an ellipsis means a read is running). Opening the popup requests cached data or a refresh when
+- The narrow 440×820 logical-pixel popup uses a Sunday-first grid, ISO week labels
+  (the week containing each row's Thursday) and up to three source-colored event dots
+  per day. Previous/next month sit **below** the grid; Today is beside the day's count.
+- Calendar chips are compact checkboxes: click to filter **both** daily rows and month
+  markers, or click All to restore every calendar. Drag the chip row horizontally when
+  it overflows. Choices persist; hiding never disconnects or deletes a calendar.
+  Multiple connections retain their names in chip labels. Colors are stable and
+  derived exclusively from the theme (colors can repeat).
+- Cards fit their content: a title-only event takes 32px, with extra space only for a
+  location or meeting action. The UI uses JetBrainsMono NFM when installed (for example
+  via the user's Scoop font pack), with the system fallback otherwise; no font is bundled.
+- The refresh arrow forces a read (it dims while busy). Opening the popup requests cached data or a refresh when
   older than five minutes. Background polling also happens every five minutes.
 - Join meeting opens the validated Teams HTTPS link via Windows' registered URL
   handler; the browser/Teams decides whether to open the app. This button does not
@@ -172,8 +179,11 @@ calendar-agenda/tests/orchestration.ps1`: synthetic caches verify stale-source
 isolation, persisted filters, corrupt caches, range changes and disabled-source
 cleanup without opening Outlook. The preview requires
 `slint-viewer` 1.12.1 and Pillow (development only), renders synthetic dark/light,
-150% scale, empty, busy and failed-source data, and never launches Outlook. It also
-checks checkbox/day/month/meeting callbacks and that busy controls reject clicks.
+Akane, 125%/150% scale, empty, busy and failed-source data, and never launches Outlook.
+It checks that nine compact cards fit, numeric locations survive fractional scaling,
+checkbox/day/month/meeting/All/Today callbacks, and that busy controls reject clicks.
+Set `CALENDAR_AGENDA_FONT_DIR` to a local directory with JetBrainsMono NFM font files
+for previews matching Windows; this does not install or bundle the fonts.
 `tests/live.py` is an explicit opt-in read-only smoke test from WSL on a configured
 Windows machine. It stages scripts and runtime files in a temporary Windows folder,
 prints only counts/status/timing, removes its cache, and never installs the applet or

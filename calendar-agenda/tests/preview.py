@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Synthetic Slint smoke tests. Run under xvfb-run; never executes a calendar provider."""
+"""Synthetic graphical regression checks under Xvfb; never runs Outlook or opens links.
+Optionally set CALENDAR_AGENDA_FONT_DIR to a directory containing JetBrainsMono NFM.
+"""
 import copy
 import ctypes
 import datetime
@@ -10,7 +12,9 @@ import subprocess
 import sys
 import tempfile
 import time
+from xml.sax.saxutils import escape
 from PIL import ImageGrab
+
 
 def click(xpos, ypos):
     x = ctypes.CDLL('libX11.so.6')
@@ -37,26 +41,50 @@ def click(xpos, ypos):
 ROOT = Path(__file__).resolve().parents[1]
 output = Path(sys.argv[1])
 output.mkdir(parents=True, exist_ok=True)
-start = datetime.date(2026, 8, 31)
+start = datetime.date(2026, 8, 30)
 cells = []
 for i in range(42):
     day = start + datetime.timedelta(days=i)
-    cells.append(dict(day=day.day, date=day.isoformat(), current=day.month == 9, today=day.day == 12 and day.month == 9, selected=day.day == 12 and day.month == 9, count=2 if i % 3 == 0 else 0))
-data = dict(**{'today-header': 'September 12', 'current-year': 2026, 'year-progress': 69.73, 'notice': ''}, month='September 2026', day='Saturday, September 12', weeks=[cells[i:i+7] for i in range(0, 42, 7)],
-            calendars=[dict(key='a'*64, name='Calendar', connection='Outlook', visible=True, color=0), dict(key='b'*64, name='Personal · fixture only', connection='Second source', visible=True, color=2), dict(key='c'*64, name='Family', connection='Second source', visible=False, color=3)],
-            events=[dict(key='d'*64, title='Weekly planning · Réunion', location='Room 201', time='09:00 - 10:00', calendar='Calendar', color=0, ongoing=True, join=True), dict(key='e'*64, title='A very long event title that should truncate without pushing the controls out of the popup', location='A very long room description / Building 4 / Floor 12', time='All day', calendar='Personal', color=2, ongoing=False, join=False)],
-            more=0, empty=False)
+    markers = [0, 2, 0][:1 + i % 3]
+    cells.append(dict(day=day.day, date=day.isoformat(), current=day.month == 9,
+                      today=day == datetime.date(2026, 9, 12), selected=day == datetime.date(2026, 9, 10), count=len(markers), markers=markers))
+
+
+def event(index, title, time_label, location='', join=False, color=0):
+    return dict(key=str(index)*64, title=title, location=location, time=time_label, calendar='Lab' if color == 0 else 'Personal', color=color, ongoing=False, join=join)
+
+
+data = dict(**{'today-header': 'September 12', 'current-year': 2026, 'year-progress': 69.73, 'notice': '',
+               'day-short': 'THU, SEP 10', 'day-count': 9, 'all-visible': True, 'week-numbers': list(range(36, 42))},
+            month='SEPTEMBER 2026', day='Thursday, September 10', weeks=[cells[i:i+7] for i in range(0, 42, 7)],
+            calendars=[dict(key='a'*64, name='Personal', label='Personal', connection='Outlook', visible=True, color=2),
+                       dict(key='b'*64, name='Lab', label='Lab', connection='Outlook', visible=True, color=0)],
+            events=[event(1, 'Annual leave', 'ALL DAY'), event(2, 'Research workshop', '08:00 - 09:00'),
+                    event(3, 'Actuation and sensing design', '11:00 - 12:15', '302-619', color=2),
+                    event(4, 'Quadruped', '11:00 - 12:00'), event(5, 'Project review', '13:00 - 14:00'),
+                    event(6, 'Robotics project meeting', '14:00 - 15:00', join=True),
+                    event(7, 'Linear Algebra', '15:30 - 16:45', color=2),
+                    event(8, 'Topics in control and optimization', '17:00 - 18:15', '301-316', color=2),
+                    event(9, 'Evening language class', '19:00 - 21:00', '38-418', color=2)], more=0, empty=False)
+controls = copy.deepcopy(data)
+controls['events'] = [event(1, 'Weekly planning · Réunion 日本語', '09:00 - 10:00', 'Room 201', join=True),
+                      event(2, 'Long title that should truncate without displacing any controls', 'ALL DAY')]
+controls['day-count'] = 2
 empty = copy.deepcopy(data)
-empty.update(events=[], empty=True)
+empty.update(events=[], empty=True, **{'day-count': 0, 'all-visible': False})
 for calendar in empty['calendars']:
     calendar['visible'] = False
 for week in empty['weeks']:
     for cell in week:
-        cell['count'] = 0
+        cell.update(count=0, markers=[])
 failed = copy.deepcopy(data)
 failed['notice'] = 'Second source: Calendar unavailable. Using cached data.'
 light = dict(bg='#eff1f5', surface='#e6e9ef', overlay='#ccd0da', fg='#4c4f69', muted='#6c6f85', accent='#8839ef')
-fixtures = [('dark', dict(data=data)), ('light', dict(light, data=data)), ('scale-150', dict(data=data)), ('empty', dict(data=empty)), ('busy', dict(data=data, busy=True)), ('failed-source', dict(data=failed)), ('initial-error', {'provider-error': 'Synthetic failure'})]
+akane = dict(bg='#12101c', surface='#221c2c', overlay='#2c2438', fg='#f0c4a8', muted='#8a6e6c', accent='#e15a48')
+fixtures = [('dark', dict(data=data)), ('light', dict(light, data=data)), ('akane', dict(akane, data=data)),
+            ('akane-125', dict(akane, data=data)), ('scale-150', dict(data=data)), ('empty', dict(data=empty)),
+            ('controls', dict(data=controls)), ('busy', dict(data=controls, busy=True)),
+            ('failed-source', dict(data=failed)), ('initial-error', {'provider-error': 'Synthetic failure'})]
 for name, values in fixtures:
     with tempfile.TemporaryDirectory() as temp:
         fixture = Path(temp) / 'fixture.json'
@@ -64,27 +92,44 @@ for name, values in fixtures:
         action_log = Path(temp) / 'actions'
         recorder = Path(temp) / 'record.py'
         recorder.write_text('import sys\nwith open(sys.argv[1], "a") as f: f.write(sys.argv[2] + "\\n")\n')
+        scale = 1.5 if name == 'scale-150' else 1.25 if name == 'akane-125' else 1
+        env = dict(os.environ, SLINT_SCALE_FACTOR=str(scale))
+        if os.environ.get('CALENDAR_AGENDA_FONT_DIR'):
+            config = Path(temp) / 'fonts.conf'
+            config.write_text('<?xml version="1.0"?><!DOCTYPE fontconfig SYSTEM "fonts.dtd"><fontconfig>'
+                              '<include>/etc/fonts/fonts.conf</include><dir>' + escape(os.environ['CALENDAR_AGENDA_FONT_DIR']) + '</dir></fontconfig>')
+            env['FONTCONFIG_FILE'] = str(config)
         with (Path(temp) / 'errors').open('w+') as errors:
-            process = subprocess.Popen(['slint-viewer', '--backend', 'winit-software', '--load-data', str(fixture), '--on', 'action', f'python3 {recorder} {action_log} "$1"', str(ROOT / 'view.slint')], stdout=subprocess.DEVNULL, stderr=errors, env=dict(os.environ, SLINT_SCALE_FACTOR='1.5' if name == 'scale-150' else '1'))
+            process = subprocess.Popen(['slint-viewer', '--backend', 'winit-software', '--load-data', str(fixture), '--on', 'action', f'python3 {recorder} {action_log} "$1"', str(ROOT / 'view.slint')], stdout=subprocess.DEVNULL, stderr=errors, env=env)
             try:
-                for _ in range(20):
+                for _ in range(30):
                     time.sleep(0.3)
                     if process.poll() is not None:
                         errors.seek(0)
                         raise AssertionError(errors.read())
-                    image = ImageGrab.grab()
-                    if image.crop((0, 0, 480, 780)).getextrema() != ((0, 0), (0, 0), (0, 0)):
+                    image = ImageGrab.grab().crop((0, 0, round(440*scale), round(820*scale)))
+                    if image.getextrema() != ((0, 0), (0, 0), (0, 0)):
                         break
                 else:
                     raise AssertionError(f'{name}: no frame rendered')
+                # Let conditional repeaters and font loading finish before inspecting pixels.
+                time.sleep(.7)
+                image = ImageGrab.grab().crop((0, 0, round(440*scale), round(820*scale)))
                 image.save(output / (name + '.png'))
-                if name in ('dark', 'busy'):
-                    for point in [(25, 487), (332, 129), (367, 234), (75, 673), (446, 129)]:
+                if name in ('dark', 'light', 'akane', 'akane-125', 'scale-150'):
+                    # Nine cards fit without scrolling. Numeric locations must not be
+                    # clipped by fractional text metrics at 125% Windows scaling.
+                    for region in [(58, 507, 180, 521), (58, 754, 250, 768)]:
+                        crop = image.crop(tuple(round(v * scale) for v in region))
+                        assert len(crop.getcolors() or []) > 4, f'{name}: missing location or ninth event text'
+                if name in ('controls', 'busy'):
+                    for point in [(168, 386), (382, 324), (368, 175), (100, 459), (380, 360), (64, 386), (342, 360)]:
                         click(*point)
                     if name == 'busy':
                         assert not action_log.exists(), 'Busy controls must not queue duplicate actions'
                     else:
-                        assert action_log.read_text().splitlines() == ['toggle ' + 'b'*64, 'month 1', 'day 2026-09-12', 'join ' + 'd'*64, 'refresh']
+                        actions = action_log.read_text().splitlines() if action_log.exists() else []
+                        assert actions == ['toggle ' + 'b'*64, 'month 1', 'day 2026-09-12', 'join ' + '1'*64, 'refresh', 'show-all', 'today'], actions
             finally:
                 process.terminate()
                 process.wait(timeout=5)
