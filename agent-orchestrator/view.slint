@@ -144,10 +144,6 @@ export component View inherits Window {
                 }
             }
             if root.provider-error != "": Text { text: root.provider-error; color: root.alert; font-size: 11px; wrap: word-wrap; max-height: 48px; }
-            HorizontalLayout {
-                height: 16px;
-                Text { text: root.busy ? "Reading from WSL…" : "Read-only · refreshed every 3 s while open"; color: root.muted; font-size: 10px; horizontal-stretch: 1; overflow: elide; }
-            }
         }
     }
 }
