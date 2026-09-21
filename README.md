@@ -48,7 +48,7 @@ python3 -B herdr/install.py --windows-home /mnt/c/Users/<WindowsUser>
 
 ## Agent Orchestrator
 
-[`agent-orchestrator/`](agent-orchestrator/README.md) lists every coding agent visible from WSL in one popup: the agents in [herdr](https://herdr.dev) panes and the tasks of the [Multica](https://multica.ai) agents, with filter tabs by state and a bar badge for the agents that need you or are working. Read-only, after [agent-orchestr](https://github.com/meviusisback/agent-orchestr) for Omarchy. A Python collector in WSL reads the herdr sockets and the local Multica server's REST API; Winarchy runs it through `wsl.exe`.
+[`agent-orchestrator/`](agent-orchestrator/README.md) lists every coding agent visible from WSL in one popup: the agents in [herdr](https://herdr.dev) panes and the [Multica](https://multica.ai) agents currently working, with filter tabs by state and a bar badge for the agents that need you or are working. Read-only, after [agent-orchestr](https://github.com/meviusisback/agent-orchestr) for Omarchy. A Python collector in WSL reads the herdr sockets and the local Multica server's REST API; Winarchy runs it through `wsl.exe`.
 
 ```sh
 python3 -B agent-orchestrator/install.py --windows-home /mnt/c/Users/<WindowsUser>

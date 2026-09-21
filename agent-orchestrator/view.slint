@@ -40,26 +40,21 @@ export component View inherits Window {
 
     in-out property <string> filter: "all";
 
-    // The theme exposes no red, green or amber; the attention colours follow
+    // The theme exposes no red or green; the attention colours follow
     // only the background's lightness.
     property <bool> light-theme: root.bg.to-hsv().value > 0.5;
     property <color> alert: light-theme ? #d20f39 : #f38ba8;
     property <color> success: light-theme ? #40a02b : #a6e3a1;
-    property <color> pending: light-theme ? #df8e1d : #f9e2af;
 
     pure function state-color(state: string) -> color {
-        if (state == "waiting" || state == "failed") { return root.alert; }
+        if (state == "waiting") { return root.alert; }
         if (state == "done") { return root.success; }
         if (state == "working") { return root.accent; }
-        if (state == "queued") { return root.pending; }
         return root.muted;
     }
-    pure function loud(state: string) -> bool { return state == "waiting" || state == "failed"; }
+    pure function loud(state: string) -> bool { return state == "waiting"; }
     pure function matches(state: string) -> bool {
-        if (root.filter == "all") { return true; }
-        if (root.filter == "working") { return state == "working" || state == "queued"; }
-        if (root.filter == "done") { return state == "done" || state == "failed"; }
-        return state == root.filter;
+        return root.filter == "all" || state == root.filter;
     }
     pure function source-color(state: string) -> color {
         if (state == "ok") { return root.success; }

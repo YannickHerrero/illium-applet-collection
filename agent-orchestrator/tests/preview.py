@@ -13,7 +13,7 @@ from PIL import ImageGrab
 ROOT = Path(__file__).resolve().parents[1]
 output = Path(sys.argv[1])
 output.mkdir(parents=True, exist_ok=True)
-WORDS = {'waiting': 'needs you', 'working': 'working', 'queued': 'queued', 'failed': 'failed', 'done': 'done', 'idle': 'ready'}
+WORDS = {'waiting': 'needs you', 'working': 'working', 'done': 'done', 'idle': 'ready'}
 
 
 def card(source, agent, title, detail, status, place=''):
@@ -24,16 +24,14 @@ cards = [
     card('herdr', 'Claude', 'Drop the legacy invoice table before the migration lands', '~/dev/billing-api', 'waiting', 'billing-api'),
     card('multica', 'Yuqi', 'DEV-102  Plan for the loyalty export', 'comment  ·  started 4 min', 'working'),
     card('herdr', 'Pi', 'Rewrite the receipt formatter', '~/dev/checkout-service', 'working', 'checkout-service'),
-    card('multica', 'Minnie', 'DEV-101  Review the expert accountant role', 'direct  ·  waiting for a local directory', 'waiting'),
-    card('multica', 'Soyeon', 'DEV-99  QA of the invoice filters', 'comment', 'queued'),
-    card('multica', 'Miyeon', 'DEV-98  Nightly recap', 'direct  ·  runtime offline  ·  finished 12 min', 'failed'),
+    card('multica', 'Minnie', 'DEV-101  Review the expert accountant role', 'direct  ·  started 12 min', 'working'),
     card('herdr', 'Claude', 'Upgrade the search index', '~/dev/docs-site', 'done', 'docs-site'),
     card('herdr', 'Codex', 'Token names for the new palette', '~/dev/winarchy', 'idle', 'winarchy'),
-    card('multica', 'Shuhua', 'No task yet', '', 'idle'),
+    card('herdr', 'Claude', 'Fix the broken anchor links', '~/dev/docs-site', 'idle', 'docs-site'),
 ]
-summary = {'total': 9, 'waiting': 2, 'working': 3, 'done': 2, 'idle': 2, 'headline': '2 agents need you'}
-sources = [{'name': 'Herdr', 'state': 'ok', 'detail': '5 agents'}, {'name': 'Multica', 'state': 'ok', 'detail': '5 agents'}]
-data = {'ok': True, 'error': '', 'bar-label': '2', 'icon': 'icon-attention.svg', 'summary': summary, 'sources': sources, 'cards': cards}
+summary = {'total': 7, 'waiting': 1, 'working': 3, 'done': 1, 'idle': 2, 'headline': '1 agent needs you'}
+sources = [{'name': 'Herdr', 'state': 'ok', 'detail': '5 agents'}, {'name': 'Multica', 'state': 'ok', 'detail': '2 working'}]
+data = {'ok': True, 'error': '', 'bar-label': '1', 'icon': 'icon-attention.svg', 'summary': summary, 'sources': sources, 'cards': cards}
 light = {'bg': '#eff1f5', 'surface': '#e6e9ef', 'overlay': '#ccd0da', 'fg': '#4c4f69', 'muted': '#6c6f85', 'accent': '#8839ef'}
 off = {'ok': True, 'error': '', 'bar-label': '', 'icon': 'icon.svg', 'summary': dict(summary, total=0, waiting=0, working=0, done=0, idle=0, headline='No source reachable'),
        'sources': [{'name': 'Herdr', 'state': 'off', 'detail': 'not running'}, {'name': 'Multica', 'state': 'error', 'detail': 'server unreachable'}], 'cards': []}

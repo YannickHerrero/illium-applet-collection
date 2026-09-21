@@ -139,44 +139,39 @@ class AgentsTests(unittest.TestCase):
             herdr_agent('wA:p2', 'Token names', 'idle', 'wA', kind='pi'),
             herdr_agent('wB:p1', 'Drop the legacy table', 'blocked', 'wB', cwd=str(self.home)),
             herdr_agent('wB:p2', '', 'done', 'wB', kind='codex', cwd='/home/tester/dev/docs-site')]})
-        yuqi, minnie, shuhua = 'a1', 'a2', 'a3'
+        yuqi, minnie = 'a1', 'a2'
         self.start_multica(tasks=[
             {'id': 't1', 'agent_id': yuqi, 'issue_id': '01a0c28d-1fa3-79ca-b27a-8b691be95f14', 'status': 'running', 'kind': 'comment', 'started_at': stamp(4)},
             {'id': 't2', 'agent_id': yuqi, 'issue_id': '01a0c28d-1fa3-79ca-b27a-8b691be95f14', 'status': 'completed', 'kind': 'comment', 'completed_at': stamp(60)},
-            {'id': 't3', 'agent_id': minnie, 'issue_id': '01a0c28d-1fa3-79ca-b27a-8b691be95f00', 'status': 'failed', 'kind': 'direct', 'completed_at': stamp(30),
-             'failure_reason': 'runtime offline', 'trigger_summary': '[@Minnie](mention://agent/a2) please review'},
-            {'id': 't4', 'agent_id': shuhua, 'issue_id': '01a0c28d-1fa3-79ca-b27a-8b691be95f01', 'status': 'completed', 'kind': 'direct', 'completed_at': stamp(60 * 30), 'trigger_summary': 'old QA run'},
-            {'id': 't5', 'agent_id': 'a4', 'issue_id': '01a0c28d-1fa3-79ca-b27a-8b691be95f02', 'status': 'waiting_local_directory', 'kind': 'direct', 'created_at': stamp(2), 'wait_reason': 'directory not attached'},
-        ], agents=[{'id': yuqi, 'name': 'Yuqi'}, {'id': minnie, 'name': 'Minnie'}, {'id': shuhua, 'name': 'Shuhua'}, {'id': 'a4', 'name': 'Soyeon'}, {'id': 'a5', 'name': 'Miyeon'}],
+            {'id': 't3', 'agent_id': minnie, 'issue_id': '01a0c28d-1fa3-79ca-b27a-8b691be95f00', 'status': 'running', 'kind': 'direct', 'started_at': stamp(30),
+             'trigger_summary': '[@Minnie](mention://agent/a2) please review'},
+            {'id': 't4', 'agent_id': 'a3', 'issue_id': '01a0c28d-1fa3-79ca-b27a-8b691be95f01', 'status': 'failed', 'kind': 'direct', 'completed_at': stamp(5)},
+            {'id': 't5', 'agent_id': 'a4', 'issue_id': '01a0c28d-1fa3-79ca-b27a-8b691be95f02', 'status': 'queued', 'kind': 'direct', 'created_at': stamp(2)},
+            {'id': 't6', 'agent_id': 'a4', 'issue_id': '01a0c28d-1fa3-79ca-b27a-8b691be95f02', 'status': 'waiting_local_directory', 'kind': 'direct', 'created_at': stamp(2)},
+        ], agents=[{'id': yuqi, 'name': 'Yuqi'}, {'id': minnie, 'name': 'Minnie'}, {'id': 'a3', 'name': 'Shuhua'}, {'id': 'a4', 'name': 'Soyeon'}, {'id': 'a5', 'name': 'Miyeon'}],
             issues=[{'id': '01a0c28d-1fa3-79ca-b27a-8b691be95f14', 'identifier': 'DEV-100', 'title': 'Daily recap'}])
         data = self.collect()
-        self.assertEqual((data['ok'], data['bar_label'], data['icon']), (True, '2', 'icon-attention.svg'))
-        self.assertEqual(data['summary'], {'total': 9, 'waiting': 2, 'working': 2, 'done': 2, 'idle': 3, 'headline': '2 agents need you'})
-        self.assertEqual(data['sources'], [{'name': 'Herdr', 'state': 'ok', 'detail': '4 agents'}, {'name': 'Multica', 'state': 'ok', 'detail': '5 agents'}])
+        self.assertEqual((data['ok'], data['bar_label'], data['icon']), (True, '1', 'icon-attention.svg'))
+        self.assertEqual(data['summary'], {'total': 6, 'waiting': 1, 'working': 3, 'done': 1, 'idle': 1, 'headline': '1 agent needs you'})
+        self.assertEqual(data['sources'], [{'name': 'Herdr', 'state': 'ok', 'detail': '4 agents'}, {'name': 'Multica', 'state': 'ok', 'detail': '2 working'}])
         rows = [(c['source'], c['agent'], c['status'], c['title']) for c in data['cards']]
+        # Only running Multica tasks are shown: no queued, waiting, finished or resting agent.
         self.assertEqual(rows, [
             ('herdr', 'Claude', 'waiting', 'Drop the legacy table'),
-            ('multica', 'Soyeon', 'waiting', 'Task'),
             ('herdr', 'Claude', 'working', 'Rewrite the receipt formatter'),
+            ('multica', 'Minnie', 'working', 'Minnie please review'),
             ('multica', 'Yuqi', 'working', 'DEV-100  Daily recap'),
-            ('multica', 'Minnie', 'failed', 'Minnie please review'),
             ('herdr', 'Codex', 'done', 'docs-site'),
             ('herdr', 'Pi', 'idle', 'Token names'),
-            ('multica', 'Miyeon', 'idle', 'No task yet'),
-            ('multica', 'Shuhua', 'idle', 'old QA run'),
         ])
         blocked = data['cards'][0]
         self.assertEqual((blocked['label'], blocked['place'], blocked['detail']), ('needs you', 'Workspace 2', '~'))
-        self.assertEqual(data['cards'][2]['place'], 'api')
+        self.assertEqual(data['cards'][1]['place'], 'api')
+        self.assertEqual(data['cards'][2]['detail'], 'direct  ·  started 30 min')
         self.assertEqual(data['cards'][3]['detail'], 'comment  ·  started 4 min')
-        self.assertEqual(data['cards'][4]['detail'], 'direct  ·  runtime offline  ·  finished 30 min')
-        self.assertEqual(data['cards'][1]['detail'], 'direct  ·  directory not attached  ·  started 2 min')
-        self.assertEqual(data['cards'][8]['detail'], 'direct  ·  finished 1 d')
-        # The busy agent's last outcome is not shown next to its running task.
-        self.assertEqual(sum(1 for c in data['cards'] if c['agent'] == 'Yuqi'), 1)
-        # Only issues of listed tasks are looked up, once each, with the CLI's headers.
+        # Only issues of running tasks are looked up, once each, with the CLI's headers.
         issue_calls = [s for s in FakeMultica.seen if s[0].startswith('/api/issues/')]
-        self.assertEqual(len(issue_calls), 4)
+        self.assertEqual(len(issue_calls), 2)
         self.assertTrue(all(s[1] == 'Bearer ' + TOKEN and s[2] == WORKSPACE for s in FakeMultica.seen))
         text = agents.dumps(data)
         self.assertNotIn(TOKEN, text)

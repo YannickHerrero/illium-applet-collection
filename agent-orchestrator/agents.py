@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Every coding agent visible from WSL, as one JSON object for the Winarchy view.
 
-Sources: the running herdr servers (their Unix sockets) and the Multica task
-queue (the local server's REST API). Read-only: nothing is focused, cancelled
+Sources: the running herdr servers (their Unix sockets) and the running tasks
+of the Multica agents (the local server's REST API). Read-only: nothing is focused, cancelled
 or killed, and the action argument Winarchy appends is ignored.
 
 Winarchy runs this through `wsl.exe`, so it starts from a non-interactive
@@ -26,16 +26,11 @@ CARD_CAP = 60
 TEXT_CAP = 160
 # Winarchy reads at most 64 KiB from a provider; stay well under it.
 OUTPUT_BYTE_CAP = 60 * 1024
-DONE_WINDOW = datetime.timedelta(hours=2)
 
 # One vocabulary for both sources, in display order.
-STATUS_RANK = {'waiting': 0, 'working': 1, 'queued': 2, 'failed': 3, 'done': 4, 'idle': 5}
-STATUS_WORD = {'waiting': 'needs you', 'working': 'working', 'queued': 'queued',
-               'failed': 'failed', 'done': 'done', 'idle': 'ready'}
+STATUS_RANK = {'waiting': 0, 'working': 1, 'done': 2, 'idle': 3}
+STATUS_WORD = {'waiting': 'needs you', 'working': 'working', 'done': 'done', 'idle': 'ready'}
 HERDR_STATUS = {'blocked': 'waiting', 'working': 'working', 'done': 'done', 'idle': 'idle'}
-MULTICA_STATUS = {'running': 'working', 'queued': 'queued', 'dispatched': 'queued',
-                  'deferred': 'queued', 'waiting_local_directory': 'waiting',
-                  'completed': 'done', 'failed': 'failed'}
 AGENT_NAMES = {'claude': 'Claude', 'codex': 'Codex', 'opencode': 'OpenCode', 'pi': 'Pi', 'omp': 'OMP',
                'grok': 'Grok', 'hermes': 'Hermes', 'copilot': 'Copilot', 'cursor': 'Cursor', 'gemini': 'Gemini'}
 
@@ -97,14 +92,6 @@ def elapsed(stamp, reference):
     if seconds < 86400:
         return f'{seconds // 3600} h'
     return f'{seconds // 86400} d'
-
-
-def parse_stamp(stamp):
-    try:
-        moment = datetime.datetime.fromisoformat(str(stamp).replace('Z', '+00:00'))
-    except (TypeError, ValueError):
-        return None
-    return moment if moment.tzinfo else moment.replace(tzinfo=datetime.timezone.utc)
 
 
 def agent_name(kind):
@@ -220,28 +207,12 @@ def multica_cards(home, reference):
         return [], {'name': 'Multica', 'state': 'error', 'detail': 'unexpected answer'}
     names = {a.get('id'): clean(a.get('name'), 40) for a in agents if isinstance(a, dict)}
 
-    active, outcomes = [], []
-    for task in tasks:
-        if not isinstance(task, dict):
-            continue
-        status = MULTICA_STATUS.get(str(task.get('status') or ''))
-        if status in ('done', 'failed'):
-            outcomes.append(task)
-        elif status:
-            active.append(task)
-    busy_agents = {t.get('agent_id') for t in active}
-    # The snapshot carries each agent's last outcome as its "last activity";
-    # an old one is just the agent resting, and a busy agent's is stale.
-    for task in outcomes:
-        finished = parse_stamp(task.get('completed_at'))
-        if task.get('agent_id') in busy_agents:
-            continue
-        if finished is None or reference - finished > DONE_WINDOW:
-            task['_status'] = 'idle'
-        active.append(task)
+    # Only agents actually working are wanted here; the snapshot also carries
+    # queued tasks and each agent's last outcome, which stay out of the popup.
+    running = [t for t in tasks if isinstance(t, dict) and t.get('status') == 'running']
 
     issues = {}
-    for task in active:
+    for task in running:
         issue_id = str(task.get('issue_id') or '')
         if not issue_id or issue_id in issues or len(issues) >= ISSUE_LOOKUP_CAP:
             continue
@@ -253,28 +224,18 @@ def multica_cards(home, reference):
             issues[issue_id] = None
 
     cards = []
-    for task in active:
-        status = task.get('_status') or MULTICA_STATUS[str(task.get('status'))]
+    for task in running:
         issue = issues.get(str(task.get('issue_id') or '')) or {}
         identifier = clean(issue.get('identifier'), 20)
         title = clean(issue.get('title')) or clean(task.get('trigger_summary')) or 'Task'
         if identifier:
             title = f'{identifier}  {title}'
-        when = task.get('completed_at') if status in ('done', 'failed', 'idle') else (task.get('started_at') or task.get('created_at'))
         parts = [clean(task.get('kind'), 20)]
-        if status == 'waiting':
-            parts.append(clean(task.get('wait_reason'), 60) or 'waiting for a local directory')
-        elif status == 'failed':
-            parts.append(clean(task.get('failure_reason') or task.get('error'), 80))
-        since = elapsed(when, reference)
+        since = elapsed(task.get('started_at') or task.get('created_at'), reference)
         if since:
-            parts.append(('finished ' if status in ('done', 'failed', 'idle') else 'started ') + since)
-        detail = '  ·  '.join(p for p in parts if p)
-        cards.append(card('multica', names.get(task.get('agent_id')) or 'Agent', title, detail, status))
-    resting = [names[a] for a in names if a not in {t.get('agent_id') for t in active}]
-    for name in sorted(resting):
-        cards.append(card('multica', name, 'No task yet', '', 'idle'))
-    detail = f'{len(names)} agent' + ('' if len(names) == 1 else 's')
+            parts.append('started ' + since)
+        cards.append(card('multica', names.get(task.get('agent_id')) or 'Agent', title, '  ·  '.join(p for p in parts if p), 'working'))
+    detail = f'{len(cards)} working'
     return cards, {'name': 'Multica', 'state': 'ok', 'detail': detail}
 
 
@@ -287,13 +248,11 @@ def plural(count, word):
 def assemble(cards, sources):
     cards.sort(key=lambda c: (STATUS_RANK[c['status']], c['source'], c['agent'].lower(), c['title'].lower()))
     counts = {status: sum(1 for c in cards if c['status'] == status) for status in STATUS_RANK}
-    waiting, working = counts['waiting'], counts['working'] + counts['queued']
+    waiting, working = counts['waiting'], counts['working']
     if waiting:
-        headline, icon, bar_label = f'{plural(waiting, "agent")} need you', 'icon-attention.svg', str(waiting)
+        headline, icon, bar_label = f'{plural(waiting, "agent")} need' + ('s' if waiting == 1 else '') + ' you', 'icon-attention.svg', str(waiting)
     elif working:
         headline, icon, bar_label = f'{plural(working, "agent")} working', 'icon-active.svg', str(working)
-    elif counts['failed']:
-        headline, icon, bar_label = f'{plural(counts["failed"], "task")} failed', 'icon-attention.svg', ''
     elif counts['done']:
         headline, icon, bar_label = f'{plural(counts["done"], "agent")} done', 'icon.svg', ''
     elif cards:
@@ -302,7 +261,7 @@ def assemble(cards, sources):
         headline, icon, bar_label = 'No agents', 'icon.svg', ''
     if all(s['state'] != 'ok' for s in sources):
         headline = 'No source reachable'
-    summary = {'total': len(cards), 'waiting': waiting, 'working': working, 'done': counts['done'] + counts['failed'],
+    summary = {'total': len(cards), 'waiting': waiting, 'working': working, 'done': counts['done'],
                'idle': counts['idle'], 'headline': headline}
     return {'ok': True, 'error': '', 'bar_label': bar_label, 'icon': icon, 'summary': summary,
             'sources': sources, 'cards': cards[:CARD_CAP]}
