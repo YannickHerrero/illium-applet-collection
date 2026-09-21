@@ -46,6 +46,14 @@ The installer backs up the bar and places `winagotchi` before the workspaces wit
 python3 -B herdr/install.py --windows-home /mnt/c/Users/<WindowsUser>
 ```
 
+## Agent Orchestrator
+
+[`agent-orchestrator/`](agent-orchestrator/README.md) lists every coding agent visible from WSL in one popup: the agents in [herdr](https://herdr.dev) panes and the tasks of the [Multica](https://multica.ai) agents, with filter tabs by state and a bar badge for the agents that need you or are working. Read-only, after [agent-orchestr](https://github.com/meviusisback/agent-orchestr) for Omarchy. A Python collector in WSL reads the herdr sockets and the local Multica server's REST API; Winarchy runs it through `wsl.exe`.
+
+```sh
+python3 -B agent-orchestrator/install.py --windows-home /mnt/c/Users/<WindowsUser>
+```
+
 ## Dictation
 
 [`dictate/`](dictate/README.md) is a bar switch for the speech model behind Winarchy's hold-to-talk dictation (`winarchy-dictate.exe`): it shows whether the model is in memory and loads or unloads it, so its roughly 700 MB only stay resident during sessions where you dictate. PowerShell provider, no data of yours is read.
@@ -76,7 +84,7 @@ This preserves the current statusline, backs up settings, and adds the applet to
 
 ## Development
 
-Claude Usage uses Python 3.11+ (standard library) for its WSL relay/setup and Windows PowerShell 5.1 for its provider. Activity Monitor and Winagotchi use Rust 1.89+ to build standalone Windows executables, with Python only for installation. Herdr uses bash 5 and jq in WSL; Dictation uses Windows PowerShell 5.1. All use Slint 1.12.1 views. Keep all generated data and private settings out of Git.
+Claude Usage uses Python 3.11+ (standard library) for its WSL relay/setup and Windows PowerShell 5.1 for its provider. Activity Monitor and Winagotchi use Rust 1.89+ to build standalone Windows executables, with Python only for installation. Herdr uses bash 5 and jq in WSL; Agent Orchestrator uses Python 3.11+ (standard library) in WSL; Dictation uses Windows PowerShell 5.1. All use Slint 1.12.1 views. Keep all generated data and private settings out of Git.
 
 Atomic commits must use `YannickHerrero <yannick.herrero@proton.me>`. No remote or publication is configured automatically.
 
