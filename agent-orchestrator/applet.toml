@@ -1,0 +1,11 @@
+# The collector names the icon: icon.svg at rest, icon-active.svg while agents
+# work, icon-attention.svg when one needs an answer or a task failed.
+icon = "{icon}"
+label = "{bar_label}"
+interval = "15s"
+# The installer replaces this with the WSL distribution and the absolute WSL
+# path of the copied collector; Winarchy appends the view's action, which the
+# collector ignores.
+command = ["wsl.exe", "-d", "Debian", "--", "python3", "agents.py"]
+focusable = false
+popup = { width = 460, height = 600 }

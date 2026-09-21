@@ -1,0 +1,158 @@
+struct Summary { total: int, waiting: int, working: int, done: int, idle: int, headline: string }
+struct Source { name: string, state: string, detail: string }
+struct Card { source: string, agent: string, title: string, detail: string, place: string, status: string, label: string }
+struct Data { ok: bool, error: string, bar-label: string, icon: string, summary: Summary, sources: [Source], cards: [Card] }
+
+component Tab inherits Rectangle {
+    in property <string> text;
+    in property <int> count;
+    in property <color> tint;
+    in property <color> fg;
+    in property <bool> selected;
+    callback clicked();
+    height: 26px; border-radius: 13px;
+    background: selected ? tint.with-alpha(0.18) : fg.with-alpha(0.05);
+    border-width: 1px; border-color: selected ? tint : transparent;
+    Text {
+        text: root.text + " " + root.count;
+        color: root.selected ? root.tint : root.fg; font-size: 12px; font-weight: root.selected ? 600 : 400;
+        horizontal-alignment: center; vertical-alignment: center;
+    }
+    TouchArea { clicked => { root.clicked(); } }
+}
+
+export component View inherits Window {
+    no-frame: true;
+    in property <length> popup-width: 460px;
+    in property <length> popup-height: 600px;
+    width: popup-width; height: popup-height;
+    in property <color> bg: #1e1e2e;
+    in property <color> surface: #313244;
+    in property <color> overlay: #45475a;
+    in property <color> fg: #cdd6f4;
+    in property <color> muted: #a6adc8;
+    in property <color> accent: #cba6f7;
+    in property <Data> data;
+    in property <bool> busy: false;
+    in property <bool> open: false;
+    in property <string> provider-error;
+    callback action(string);
+
+    in-out property <string> filter: "all";
+
+    // The theme exposes no red, green or amber; the attention colours follow
+    // only the background's lightness.
+    property <bool> light-theme: root.bg.to-hsv().value > 0.5;
+    property <color> alert: light-theme ? #d20f39 : #f38ba8;
+    property <color> success: light-theme ? #40a02b : #a6e3a1;
+    property <color> pending: light-theme ? #df8e1d : #f9e2af;
+
+    pure function state-color(state: string) -> color {
+        if (state == "waiting" || state == "failed") { return root.alert; }
+        if (state == "done") { return root.success; }
+        if (state == "working") { return root.accent; }
+        if (state == "queued") { return root.pending; }
+        return root.muted;
+    }
+    pure function loud(state: string) -> bool { return state == "waiting" || state == "failed"; }
+    pure function matches(state: string) -> bool {
+        if (root.filter == "all") { return true; }
+        if (root.filter == "working") { return state == "working" || state == "queued"; }
+        if (root.filter == "done") { return state == "done" || state == "failed"; }
+        return state == root.filter;
+    }
+    pure function source-color(state: string) -> color {
+        if (state == "ok") { return root.success; }
+        if (state == "error") { return root.alert; }
+        return root.muted;
+    }
+    pure function shown() -> int {
+        if (root.filter == "waiting") { return root.data.summary.waiting; }
+        if (root.filter == "working") { return root.data.summary.working; }
+        if (root.filter == "done") { return root.data.summary.done; }
+        if (root.filter == "idle") { return root.data.summary.idle; }
+        return root.data.summary.total;
+    }
+
+    // Agent states are what the popup is opened for, so they are refreshed
+    // faster while it is visible than the manifest interval used while closed.
+    changed open => { if (open && !busy) { root.action("refresh"); } }
+    Timer { interval: 3s; running: root.open; triggered => { if (!root.busy) { root.action("refresh"); } } }
+
+    background: bg;
+    Rectangle {
+        border-width: 1px; border-color: root.accent;
+        VerticalLayout {
+            padding: 18px; spacing: 10px;
+            HorizontalLayout {
+                height: 22px; spacing: 10px;
+                Text { text: "Agents"; color: root.fg; font-size: 15px; font-weight: 600; vertical-alignment: center; }
+                Text { text: root.data.summary.headline; color: root.muted; font-size: 13px; vertical-alignment: center; horizontal-alignment: right; horizontal-stretch: 1; overflow: elide; }
+            }
+            HorizontalLayout {
+                height: 18px; spacing: 16px; alignment: start;
+                for source in root.data.sources: HorizontalLayout {
+                    spacing: 6px;
+                    Rectangle { width: 8px; Rectangle { width: 8px; height: 8px; border-radius: 4px; background: root.source-color(source.state); } }
+                    Text { text: source.name + "  ·  " + source.detail; color: root.muted; font-size: 12px; vertical-alignment: center; }
+                }
+            }
+            Rectangle { height: 1px; background: root.overlay; }
+            HorizontalLayout {
+                spacing: 6px;
+                Tab { text: "All"; count: root.data.summary.total; tint: root.accent; fg: root.fg; selected: root.filter == "all"; clicked => { root.filter = "all"; } }
+                Tab { text: "Working"; count: root.data.summary.working; tint: root.accent; fg: root.fg; selected: root.filter == "working"; clicked => { root.filter = "working"; } }
+                Tab { text: "Needs you"; count: root.data.summary.waiting; tint: root.alert; fg: root.fg; selected: root.filter == "waiting"; clicked => { root.filter = "waiting"; } }
+                Tab { text: "Done"; count: root.data.summary.done; tint: root.success; fg: root.fg; selected: root.filter == "done"; clicked => { root.filter = "done"; } }
+                Tab { text: "Idle"; count: root.data.summary.idle; tint: root.muted; fg: root.fg; selected: root.filter == "idle"; clicked => { root.filter = "idle"; } }
+            }
+            Flickable {
+                vertical-stretch: 1;
+                viewport-height: max(self.height, list.preferred-height);
+                list := VerticalLayout {
+                    alignment: start; spacing: 0px;
+                    for card in root.data.cards: Rectangle {
+                        property <bool> shown: root.matches(card.status);
+                        height: shown ? 72px : 0px; visible: shown; clip: true;
+                        Rectangle {
+                            height: 64px; border-radius: 6px;
+                            background: root.loud(card.status) ? root.state-color(card.status).with-alpha(0.10) : root.surface.with-alpha(0.45);
+                            HorizontalLayout {
+                                padding-left: 10px; padding-right: 12px; padding-top: 8px; padding-bottom: 8px; spacing: 10px;
+                                Rectangle { width: 10px; Rectangle { y: 6px; width: 10px; height: 10px; border-radius: 5px; background: root.state-color(card.status); } }
+                                VerticalLayout {
+                                    horizontal-stretch: 1; spacing: 2px;
+                                    HorizontalLayout {
+                                        height: 18px; spacing: 8px;
+                                        Text { text: card.agent; color: root.fg; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                                        Rectangle {
+                                            border-radius: 3px; background: root.overlay.with-alpha(0.7);
+                                            width: tag.preferred-width + 10px;
+                                            tag := Text { x: 5px; text: card.source == "herdr" ? "HERDR" : "MULTICA"; color: root.muted; font-size: 9px; font-weight: 600; vertical-alignment: center; }
+                                        }
+                                        Rectangle { horizontal-stretch: 1; }
+                                        Text { text: card.label; color: root.state-color(card.status); font-size: 12px; font-weight: root.loud(card.status) ? 600 : 400; vertical-alignment: center; }
+                                    }
+                                    Text { text: card.title; color: root.loud(card.status) ? root.state-color(card.status) : root.fg; font-size: 13px; height: 18px; vertical-alignment: center; overflow: elide; }
+                                    HorizontalLayout {
+                                        height: 16px; spacing: 10px;
+                                        Text { text: card.detail; color: root.muted; font-size: 11px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                                        Text { text: card.place; color: root.muted; font-size: 11px; vertical-alignment: center; visible: card.place != ""; }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if root.data.ok && root.data.cards.length == 0: Text { text: "No agent found.\nStart herdr or the Multica daemon in WSL to see agents here."; color: root.muted; font-size: 12px; wrap: word-wrap; }
+                    if root.data.ok && root.data.cards.length > 0 && root.shown() == 0: Text { text: "Nothing in this tab."; color: root.muted; font-size: 12px; }
+                    if !root.data.ok: Text { text: root.data.error != "" ? root.data.error : "the collector failed"; color: root.alert; font-size: 12px; wrap: word-wrap; }
+                }
+            }
+            if root.provider-error != "": Text { text: root.provider-error; color: root.alert; font-size: 11px; wrap: word-wrap; max-height: 48px; }
+            HorizontalLayout {
+                height: 16px;
+                Text { text: root.busy ? "Reading from WSL…" : "Read-only · refreshed every 3 s while open"; color: root.muted; font-size: 10px; horizontal-stretch: 1; overflow: elide; }
+            }
+        }
+    }
+}
