@@ -110,7 +110,7 @@ function ConvertTo-AgendaView($Snapshots, $Connections, $State, $Statuses, [date
         }
         $weeks += ,$cells
     }
-    $selected = @($events.ToArray() | Sort-Object @{Expression={ -not $_.event.all_day }}, sort_start)
+    $selected = @($events.ToArray() | Sort-Object @{Expression={ -not $_.event.all_day }}, @{Expression={ $_.sort_start.Ticks }})
     $rows = @()
     foreach ($item in ($selected | Select-Object -First 40)) {
         $event = $item.event; $ongoing = $false

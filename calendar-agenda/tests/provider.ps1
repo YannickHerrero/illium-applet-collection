@@ -67,6 +67,15 @@ $marked = @($large.weeks | ForEach-Object { $_ } | Where-Object { $_.date -eq '2
 Assert ($marked.count -eq 55 -and $marked.markers.Count -eq 3) 'at most three event dots per day without losing the total count'
 $emptySnapshot = ConvertTo-AgendaView @{work=@{calendars=@($calendar);events=@()}} $connections $state @()
 Assert ($emptySnapshot.empty -and $emptySnapshot.calendars.Count -eq 1) 'empty calendars remain selectable'
+$timedRows = @()
+foreach ($clock in @('11:00', '09:30', '10:00')) {
+    $start = [datetimeoffset]::new([datetime]("2026-09-12T" + $clock))
+    $timedRows += [pscustomobject]@{id=$clock;calendar_id='main';title='Synthetic';location='';all_day=$false;start=$start.ToString('o');end=$start.AddMinutes(30).ToString('o');meeting_url=''}
+}
+foreach ($ordering in @($timedRows, @($timedRows[2], $timedRows[1], $timedRows[0]))) {
+    $sorted = ConvertTo-AgendaView @{work=@{calendars=@($calendar);events=@($ordering)+@($event)}} $connections $state @()
+    Assert (($sorted.events.time -join ',') -eq 'All day,09:30 - 10:00,10:00 - 10:30,11:00 - 11:30') 'all-day first, then chronological regardless of connector order'
+}
 $temp = Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString('N') + '.json')
 try {
     Write-AgendaJson $temp @{value='first'}
