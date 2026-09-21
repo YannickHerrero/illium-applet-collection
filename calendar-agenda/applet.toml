@@ -1,0 +1,5 @@
+icon = "icon.svg"
+script = "agenda.ps1"
+interval = "5m"
+focusable = true
+popup = { width = 480, height = 780 }
