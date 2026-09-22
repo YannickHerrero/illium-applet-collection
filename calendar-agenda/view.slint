@@ -3,7 +3,8 @@ import { ScrollView } from "std-widgets.slint";
 struct Cell { day: int, date: string, current: bool, today: bool, selected: bool, count: int, markers: [int] }
 struct Calendar { key: string, name: string, label: string, connection: string, visible: bool, color: int }
 struct Event { key: string, title: string, location: string, time: string, calendar: string, color: int, ongoing: bool, join: bool }
-struct Data { today-header: string, current-year: int, year-progress: float, notice: string, month: string, day: string, day-short: string, day-count: int, all-visible: bool, week-numbers: [int], weeks: [[Cell]], calendars: [Calendar], events: [Event], more: int, empty: bool }
+struct Day { date: string, label: string, count: int, events: [Event], more: int }
+struct Data { today-header: string, current-year: int, year-progress: float, notice: string, month: string, day-index: int, today-index: int, days: [Day], all-visible: bool, week-numbers: [int], weeks: [[Cell]], calendars: [Calendar] }
 
 component AgendaButton inherits Rectangle {
     in property <string> label;
@@ -30,11 +31,8 @@ export component View inherits Window {
     in property <length> popup-width: 440px;
     in property <length> popup-height: 820px;
     width: popup-width;
-    // The manifest supplies the ceiling, not a fixed empty area below the agenda.
-    private property <length> content-height: min(root.popup-height, content.preferred-height);
-    // Winarchy initially positions the native window at the manifest's maximum size.
-    // Apply the content size after that placement, including on every reopening.
-    height: root.open && !root.fit-ready ? root.popup-height : root.content-height;
+    // Stable geometry: day selection and refresh never move the popup or controls.
+    height: root.popup-height;
     // Installed with the user's Scoop font pack; Windows falls back if unavailable.
     default-font-family: "JetBrainsMono NFM";
     default-font-size: 10px;
@@ -49,18 +47,19 @@ export component View inherits Window {
     in property <string> provider-error;
     in property <Data> data;
     callback action(string);
-    private property <bool> was-open: false;
-    private property <bool> fit-ready: false;
-    changed open => {
-        root.fit-ready = false;
-        if root.open && !root.was-open { root.action(""); }
-        root.was-open = root.open;
+    callback dismissed();
+    private property <int> selected-index: root.data.day-index;
+    private property <string> loaded-month: "";
+    private property <Day> selected: root.data.days[root.selected-index];
+    changed data => {
+        if root.loaded-month != root.data.month {
+            root.selected-index = root.data.day-index;
+            root.loaded-month = root.data.month;
+        }
     }
-    Timer {
-        interval: 100ms;
-        running: root.open && !root.fit-ready;
-        triggered => { root.fit-ready = true; }
-    }
+    changed open => { if root.open { root.action(""); } }
+    // Persist once after interaction, never on the click-to-display path.
+    dismissed => { if root.selected.date != "" { root.action("day " + root.selected.date); } }
     pure function source-color(index: int) -> color {
         if index == 0 { return root.accent; }
         if index == 1 { return root.accent.mix(root.fg, 0.4); }
@@ -111,13 +110,13 @@ export component View inherits Window {
             VerticalLayout {
                 height: 174px;
                 spacing: 2px;
-                for week[index] in root.data.weeks: HorizontalLayout {
+                for week[week-index] in root.data.weeks: HorizontalLayout {
                     spacing: 2px;
-                    Text { width: 26px; text: "\{root.data.week-numbers[index]}"; color: root.muted; font-size: 8px; horizontal-alignment: center; vertical-alignment: center; }
-                    for cell in week: Rectangle {
+                    Text { width: 26px; text: "\{root.data.week-numbers[week-index]}"; color: root.muted; font-size: 8px; horizontal-alignment: center; vertical-alignment: center; }
+                    for cell[cell-index] in week: Rectangle {
                         background: day-touch.has-hover ? root.surface : transparent;
-                        border-width: cell.today || cell.selected ? 1px : 0px;
-                        border-color: cell.selected ? root.fg.mix(root.bg, 0.35) : root.overlay;
+                        border-width: cell.today || cell.date == root.selected.date ? 1px : 0px;
+                        border-color: cell.date == root.selected.date ? root.fg.mix(root.bg, 0.35) : root.overlay;
                         accessible-role: button;
                         accessible-label: cell.date;
                         Text { y: 1px; height: 17px; text: "\{cell.day}"; color: cell.current ? root.fg : root.muted.mix(root.bg, 0.5); font-size: 9px; horizontal-alignment: center; vertical-alignment: center; }
@@ -126,7 +125,7 @@ export component View inherits Window {
                             width: cell.markers.length * 5px; height: 3px; spacing: 2px;
                             for marker in cell.markers: Rectangle { width: 3px; height: 3px; border-radius: 1px; background: root.source-color(marker); }
                         }
-                        day-touch := TouchArea { enabled: !root.busy; mouse-cursor: pointer; clicked => { root.action("day " + cell.date); } }
+                        day-touch := TouchArea { mouse-cursor: pointer; clicked => { root.selected-index = week-index * 7 + cell-index; } }
                     }
                 }
             }
@@ -140,13 +139,13 @@ export component View inherits Window {
             HorizontalLayout {
                 height: 22px;
                 spacing: 6px;
-                Text { text: root.data.day-short; color: root.fg; font-size: 9px; font-weight: 600; vertical-alignment: center; horizontal-stretch: 0; }
+                Text { text: root.selected.label; color: root.fg; font-size: 9px; font-weight: 600; vertical-alignment: center; horizontal-stretch: 0; }
                 Rectangle {
                     width: 20px; height: 14px; background: root.surface;
-                    Text { text: "\{root.data.day-count}"; color: root.muted; font-size: 8px; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: "\{root.selected.count}"; color: root.muted; font-size: 8px; horizontal-alignment: center; vertical-alignment: center; }
                 }
                 Rectangle { horizontal-stretch: 1; }
-                AgendaButton { label: "Today"; width: 36px; ink: root.muted; fill: root.surface; enabled: !root.busy; clicked => { root.action("today"); } }
+                AgendaButton { label: "Today"; width: 36px; ink: root.muted; fill: root.surface; enabled: root.data.today-index >= 0 || !root.busy; clicked => { if root.data.today-index >= 0 { root.selected-index = root.data.today-index; } else { root.action("today"); } } }
                 AgendaButton { label: "Refresh"; icon-only: true; icon: @image-url("refresh.svg"); width: 20px; ink: root.busy ? root.overlay : root.muted; fill: root.surface; enabled: !root.busy; clicked => { root.action("refresh"); } }
             }
             // Horizontal, scrollable checkbox chips replace the tall source panel.
@@ -180,7 +179,7 @@ export component View inherits Window {
                 horizontal-scrollbar-policy: always-off;
                 event-list := VerticalLayout {
                     spacing: 4px;
-                    for event in root.data.events: Rectangle {
+                    for event in root.selected.events: Rectangle {
                         height: 32px + (event.location != "" ? 12px : 0px) + (event.join ? 20px : 0px);
                         background: root.surface;
                         Rectangle { x: 0px; y: 0px; width: 2px; height: parent.height; background: root.source-color(event.color); }
@@ -195,8 +194,8 @@ export component View inherits Window {
                             clicked => { root.action("join " + event.key); }
                         }
                     }
-                    if root.data.empty: Text { text: "No events in visible calendars"; color: root.muted; font-size: 9px; }
-                    if root.data.more > 0: Text { text: "\{root.data.more} more events — open the source calendar to see all"; color: root.muted; font-size: 9px; wrap: word-wrap; }
+                    if root.selected.count == 0: Text { text: "No events in visible calendars"; color: root.muted; font-size: 9px; }
+                    if root.selected.more > 0: Text { text: "\{root.selected.more} more events — open the source calendar to see all"; color: root.muted; font-size: 9px; wrap: word-wrap; }
                 }
             }
         }

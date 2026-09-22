@@ -25,22 +25,22 @@ try {
         return ($raw | ConvertFrom-Json)
     }
     $data = Invoke-FixtureAgenda
-    Assert ($data.events.Count -eq 2) 'failed refresh must preserve its matching cached range'
+    Assert ($data.days[$data.day_index].events.Count -eq 2) 'failed refresh must preserve its matching cached range'
     Assert (-not $data.statuses[0].stale -and $data.statuses[1].stale) 'fresh and failed sources isolated'
     $color = $data.calendars[0].color
     $filtered = Invoke-FixtureAgenda ('toggle ' + $data.calendars[1].key)
-    Assert ($filtered.events.Count -eq 1) 'cached filter'
+    Assert ($filtered.days[$filtered.day_index].events.Count -eq 1) 'cached filter'
     $persisted = Invoke-FixtureAgenda
     Assert (-not $persisted.calendars[1].visible) 'visibility persisted across provider processes'
     $all = Invoke-FixtureAgenda 'show-all'
-    Assert ($all.all_visible -and $all.events.Count -eq 2) 'All chip restores hidden calendars'
+    Assert ($all.all_visible -and $all.days[$all.day_index].events.Count -eq 2) 'All chip restores hidden calendars'
     # A corrupt source cache must not discard the other source.
     Write-AgendaJson (Join-Path $runtime 'cache-stale.json') @{unexpected='fixture'}
     $partial = Invoke-FixtureAgenda
-    Assert ($partial.events.Count -eq 1 -and $partial.calendars.Count -eq 1) 'corrupt cache isolated'
+    Assert ($partial.days[$partial.day_index].events.Count -eq 1 -and $partial.calendars.Count -eq 1) 'corrupt cache isolated'
     Assert ($partial.calendars[0].color -eq $color) 'source color stable'
     $next = Invoke-FixtureAgenda 'month 1'
-    Assert ($next.events.Count -eq 0 -and $next.calendars.Count -eq 0) 'wrong-range cache never displayed'
+    Assert ($next.days[$next.day_index].events.Count -eq 0 -and $next.calendars.Count -eq 0) 'wrong-range cache never displayed'
     $connections[1].enabled = $false
     Write-AgendaJson (Join-Path $runtime 'connections.json') $config
     $disabled = Invoke-FixtureAgenda 'today'

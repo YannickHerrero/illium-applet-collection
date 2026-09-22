@@ -137,12 +137,7 @@ try {
         }
     }
     $view = ConvertTo-AgendaView $snapshots $connections $state $statuses
-    $json = ConvertTo-Json $view -Depth 16 -Compress
-    while ([Text.Encoding]::UTF8.GetByteCount($json) -gt 60000 -and $view.events.Count -gt 0) {
-        $view.events = @($view.events | Select-Object -SkipLast 1); $view.more++
-        $json = ConvertTo-Json $view -Depth 16 -Compress
-    }
-    if ([Text.Encoding]::UTF8.GetByteCount($json) -gt 60000) { throw 'Too many calendars to display. Disable a connection.' }
+    $json = ConvertTo-AgendaJson $view
     [Console]::WriteLine($json)
 } catch {
     # Do not expose private configuration, event values or raw COM exception messages.

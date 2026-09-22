@@ -44,11 +44,12 @@ A multiline `right` array requires manually adding `calendar-agenda` first.
 - The header shows today's local date and progress through the current year (including
   leap years). The percentage is completed whole percent; browsing another month does
   not change this indicator.
-- The popup is 440 logical pixels wide and fits its content vertically, up to the
-  manifest's `popup.height` ceiling (820 by default, further limited by Winarchy to
-  the monitor). Empty days and small agendas leave no reserved blank event area;
-  only the event list scrolls once the ceiling is reached. It refits after date/filter
-  changes and shortly after opening, after Winarchy's initial native placement.
+- The popup is 440 logical pixels wide and keeps a stable height from
+  `popup.height` (820 by default, further limited by Winarchy to the monitor).
+  Only the event list scrolls; selecting a date never moves the controls.
+  All 42 days are supplied in one bounded snapshot. Day selection and Today within
+  the grid are immediate local interactions, even while a source is refreshing.
+  The selected day is persisted when the popup closes.
   The grid is Sunday-first, with ISO week labels
   (the week containing each row's Thursday) and up to three source-colored event dots
   per day. Previous/next month sit **below** the grid; Today is beside the day's count.
@@ -174,6 +175,7 @@ No private calendar is read by the default tests:
 ```sh
 python3 -B -m unittest discover -s calendar-agenda/tests -p 'test_*.py'
 pwsh -NoProfile -File calendar-agenda/tests/provider.ps1
+pwsh -NoProfile -File calendar-agenda/tests/model.ps1
 pwsh -NoProfile -File calendar-agenda/tests/outlook.ps1
 xvfb-run -a python3 calendar-agenda/tests/preview.py /tmp/calendar-agenda-preview
 ```
@@ -186,9 +188,10 @@ cleanup without opening Outlook. The preview requires
 `slint-viewer` 1.12.1 and Pillow (development only), renders synthetic dark/light,
 Akane, 125%/150% scale, empty, busy and failed-source data, and never launches Outlook.
 It checks that nine compact cards fit, numeric locations survive fractional scaling,
-checkbox/day/month/meeting/All/Today callbacks, and that busy controls reject clicks.
+checkbox/month/meeting/All callbacks, local day/Today interactions, and that busy
+provider-backed controls reject clicks without disabling local day selection.
 Native window dimensions are checked for empty/small/large agendas, the deferred
-opening fit and a custom lower height ceiling.
+stable opening geometry and a custom lower height ceiling.
 Set `CALENDAR_AGENDA_FONT_DIR` to a local directory with JetBrainsMono NFM font files
 for previews matching Windows; this does not install or bundle the fonts.
 `tests/live.py` is an explicit opt-in read-only smoke test from WSL on a configured

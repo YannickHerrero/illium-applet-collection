@@ -23,21 +23,21 @@ $leapView = ConvertTo-AgendaView @{} @() $state @() ([datetime]'2024-07-02T00:00
 Assert ($leapView.year_progress -eq 50 -and $leapView.today_header -eq 'July 2') 'leap year has 366 days and header ignores browsed month'
 $yearEndView = ConvertTo-AgendaView @{} @() $state @() ([datetime]'2024-12-31T23:59:59')
 Assert ($yearEndView.year_progress -lt 100 -and $yearEndView.year_progress -gt 99) 'progress does not reach 100 early'
-Assert ($view.events.Count -eq 2) 'must not deduplicate across sources'
+Assert ($view.days[$view.day_index].events.Count -eq 2) 'must not deduplicate across sources'
 Assert ($view.weeks.Count -eq 6 -and $view.weeks[0].Count -eq 7) '42 cell grid'
 Assert ($view.weeks[0][0].date -eq '2026-08-30') 'reference layout uses a Sunday-first grid'
 Assert (($view.week_numbers -join ',') -eq '36,37,38,39,40,41') 'ISO week labels use Thursday of each row'
-Assert ($view.day_short -eq 'SAT, SEP 12' -and $view.day_count -eq 2 -and $view.all_visible) 'compact day heading and all-selected state'
+Assert ($view.days[$view.day_index].label -eq 'SAT, SEP 12' -and $view.days[$view.day_index].count -eq 2 -and $view.all_visible) 'compact day heading and all-selected state'
 Assert ($view.calendars[0].label -eq 'Work / Calendar') 'multiple connections retain source identity on chips'
 $boundaryState = [pscustomobject]@{month='2021-01';day='2021-01-01';hidden=@()}
 $boundary = ConvertTo-AgendaView @{} @() $boundaryState @()
 Assert ($boundary.week_numbers[0] -eq 53 -and $boundary.week_numbers[1] -eq 1) 'ISO week numbering across new year'
 Assert ($boundary.weeks[0][0].markers.Count -eq 0) 'empty days never emit null markers'
-Assert ($view.events[0].title -eq 'Réunion 日本語') 'Unicode preserved'
-Assert ($view.events[0].key -ne $view.events[1].key) 'qualified occurrence identities'
+Assert ($view.days[$view.day_index].events[0].title -eq 'Réunion 日本語') 'Unicode preserved'
+Assert ($view.days[$view.day_index].events[0].key -ne $view.days[$view.day_index].events[1].key) 'qualified occurrence identities'
 $state.hidden = @((Get-AgendaKey 'home' 'main'))
 $view = ConvertTo-AgendaView $snapshots $connections $state @()
-Assert ($view.events.Count -eq 1) 'checkbox filters agenda'
+Assert ($view.days[$view.day_index].events.Count -eq 1) 'checkbox filters agenda'
 $cell = @($view.weeks | ForEach-Object { $_ } | Where-Object { $_.date -eq '2026-09-12' })[0]
 Assert ($cell.count -eq 1 -and $cell.markers.Count -eq 1) 'checkbox filters month markers'
 Assert (-not $view.all_visible) 'partial selection clears All indicator'
@@ -50,10 +50,10 @@ $dst = @{all_day=$false;start='2026-03-29T01:30:00+01:00';end='2026-03-29T03:30:
 Assert (([datetimeoffset]::Parse($dst.end) - [datetimeoffset]::Parse($dst.start)).TotalHours -eq 1) 'DST offset semantics'
 $state.hidden = @((Get-AgendaKey 'home' 'main'), (Get-AgendaKey 'work' 'main'))
 $view = ConvertTo-AgendaView $snapshots $connections $state @()
-Assert ($view.empty -and $view.events.Count -eq 0) 'all sources hidden'
+Assert ($view.days[$view.day_index].count -eq 0 -and $view.days[$view.day_index].events.Count -eq 0) 'all sources hidden'
 $state.hidden = @()
 $view = ConvertTo-AgendaView @{work=$snapshots.work} $connections $state @(@{name='Home';message='Unavailable';stale=$true})
-Assert ($view.events.Count -eq 1 -and $view.statuses[0].stale) 'source failure isolation'
+Assert ($view.days[$view.day_index].events.Count -eq 1 -and $view.statuses[0].stale) 'source failure isolation'
 Assert ($view.notice -eq 'Home: Unavailable') 'source failures remain visible without a footer'
 $limited = ConvertTo-AgendaView @{} @() $state @(@{name='Work';message='Read locally - results limited';stale=$false})
 Assert ($limited.notice -like '*results limited*') 'truncation remains visible without a footer'
@@ -62,11 +62,11 @@ $withOther = ConvertTo-AgendaView $snapshots $connections $state @()
 Assert ($colorBefore -eq $withOther.calendars[0].color) 'colors stable across connection failures'
 $many = @(); for ($i=0; $i -lt 55; $i++) { $copy = $event.Clone(); $copy.id = "event-$i"; $many += $copy }
 $large = ConvertTo-AgendaView @{work=@{calendars=@($calendar);events=$many}} $connections $state @()
-Assert ($large.events.Count -eq 40 -and $large.more -eq 15) 'daily row cap reports omitted items'
+Assert ($large.days[$large.day_index].events.Count -eq 40 -and $large.days[$large.day_index].more -eq 15) 'daily row cap reports omitted items'
 $marked = @($large.weeks | ForEach-Object { $_ } | Where-Object { $_.date -eq '2026-09-12' })[0]
 Assert ($marked.count -eq 55 -and $marked.markers.Count -eq 3) 'at most three event dots per day without losing the total count'
 $emptySnapshot = ConvertTo-AgendaView @{work=@{calendars=@($calendar);events=@()}} $connections $state @()
-Assert ($emptySnapshot.empty -and $emptySnapshot.calendars.Count -eq 1) 'empty calendars remain selectable'
+Assert ($emptySnapshot.days[$emptySnapshot.day_index].count -eq 0 -and $emptySnapshot.calendars.Count -eq 1) 'empty calendars remain selectable'
 $timedRows = @()
 foreach ($clock in @('11:00', '09:30', '10:00')) {
     $start = [datetimeoffset]::new([datetime]("2026-09-12T" + $clock))
@@ -74,7 +74,7 @@ foreach ($clock in @('11:00', '09:30', '10:00')) {
 }
 foreach ($ordering in @($timedRows, @($timedRows[2], $timedRows[1], $timedRows[0]))) {
     $sorted = ConvertTo-AgendaView @{work=@{calendars=@($calendar);events=@($ordering)+@($event)}} $connections $state @()
-    Assert (($sorted.events.time -join ',') -eq 'All day,09:30 - 10:00,10:00 - 10:30,11:00 - 11:30') 'all-day first, then chronological regardless of connector order'
+    Assert (($sorted.days[$sorted.day_index].events.time -join ',') -eq 'All day,09:30 - 10:00,10:00 - 10:30,11:00 - 11:30') 'all-day first, then chronological regardless of connector order'
 }
 $temp = Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString('N') + '.json')
 try {

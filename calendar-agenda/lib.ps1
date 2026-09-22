@@ -49,6 +49,17 @@ function Test-AgendaOverlap($Event, [datetime]$Start, [datetime]$End) {
     $b = [datetimeoffset]::Parse($Event.end).LocalDateTime
     return $a -lt $End -and ($b -gt $Start -or ($a -eq $b -and $a -ge $Start))
 }
+function ConvertTo-AgendaJson($View) {
+    $json = ConvertTo-Json $View -Depth 16 -Compress
+    while ([Text.Encoding]::UTF8.GetByteCount($json) -gt 60000) {
+        $largest = $View.days | Sort-Object { $_.events.Count } -Descending | Select-Object -First 1
+        if ($largest.events.Count -eq 0) { break }
+        $largest.events = @($largest.events | Select-Object -SkipLast 1); $largest.more++
+        $json = ConvertTo-Json $View -Depth 16 -Compress
+    }
+    if ([Text.Encoding]::UTF8.GetByteCount($json) -gt 60000) { throw 'Too many calendars to display. Disable a connection.' }
+    return $json
+}
 function ConvertTo-AgendaView($Snapshots, $Connections, $State, $Statuses, [datetime]$Now = (Get-Date)) {
     $month = [datetime]::ParseExact($State.month, 'yyyy-MM', [cultureinfo]::InvariantCulture)
     $day = [datetime]::ParseExact($State.day, 'yyyy-MM-dd', [cultureinfo]::InvariantCulture)
@@ -89,8 +100,8 @@ function ConvertTo-AgendaView($Snapshots, $Connections, $State, $Statuses, [date
                             if (-not $markers.ContainsKey($dateKey)) { $markers[$dateKey] = @() }
                             if ($markers[$dateKey].Count -lt 3) { $markers[$dateKey] += $color }
                         }
-                        if ($a -lt $day.AddDays(1) -and ($b -gt $day -or ($a -eq $b -and $a -ge $day))) {
-                            $events.Add(@{ event = $event; key = (Get-AgendaKey $connection.id $event.id); calendar = (Limit-AgendaText $calendar.name 70); color = $color; sort_start = $a })
+                        if ($a -lt $window.end -and ($b -gt $window.start -or ($a -eq $b -and $a -ge $window.start))) {
+                            $events.Add(@{ event = $event; key = (Get-AgendaKey $connection.id $event.id); calendar = (Limit-AgendaText $calendar.name 70); color = $color; sort_start = $a; sort_end = $b })
                         }
                     }
                 }
@@ -111,8 +122,8 @@ function ConvertTo-AgendaView($Snapshots, $Connections, $State, $Statuses, [date
         $weeks += ,$cells
     }
     $selected = @($events.ToArray() | Sort-Object @{Expression={ -not $_.event.all_day }}, @{Expression={ $_.sort_start.Ticks }})
-    $rows = @()
-    foreach ($item in ($selected | Select-Object -First 40)) {
+    $presented = @()
+    foreach ($item in $selected) {
         $event = $item.event; $ongoing = $false
         if ($event.all_day) { $time = 'All day' }
         else {
@@ -121,10 +132,19 @@ function ConvertTo-AgendaView($Snapshots, $Connections, $State, $Statuses, [date
             if ($a.Date -ne $b.Date) { $time = $a.ToString('MMM d HH:mm', [cultureinfo]'en-US') + ' - ' + $b.ToString('MMM d HH:mm', [cultureinfo]'en-US') }
             $ongoing = $a -le $Now -and $b -gt $Now
         }
-        $rows += @{ key = $item.key; title = (Limit-AgendaText $event.title); location = (Limit-AgendaText $event.location 100); time = $time; calendar = $item.calendar; color = $item.color; ongoing = $ongoing; join = (Test-AgendaMeetingUrl $event.meeting_url) }
+        $row = @{ key = $item.key; title = (Limit-AgendaText $event.title); location = (Limit-AgendaText $event.location 100); time = $time; calendar = $item.calendar; color = $item.color; ongoing = $ongoing; join = (Test-AgendaMeetingUrl $event.meeting_url) }
+        $presented += @{ start = $item.sort_start; end = $item.sort_end; row = $row }
+    }
+    # All six weeks are available locally: selecting a day never starts PowerShell.
+    $days = @()
+    for ($i = 0; $i -lt 42; $i++) {
+        $date = $window.start.AddDays($i); $end = $date.AddDays(1)
+        $items = @($presented | Where-Object { $_.start -lt $end -and ($_.end -gt $date -or ($_.start -eq $_.end -and $_.start -ge $date)) })
+        $rows = @($items | Select-Object -First 40 | ForEach-Object { $_.row })
+        $days += @{ date = $date.ToString('yyyy-MM-dd'); label = $date.ToString('ddd, MMM d', [cultureinfo]'en-US').ToUpperInvariant(); count = $items.Count; events = $rows; more = $items.Count - $rows.Count }
     }
     $yearStart = [datetime]::new($Now.Year, 1, 1)
     $yearProgress = 100 * ($Now - $yearStart).TotalDays / ($yearStart.AddYears(1) - $yearStart).TotalDays
     $warnings = @($Statuses | Where-Object { $_.stale -or $_.message -like '*results limited*' } | ForEach-Object { $_.name + ': ' + $_.message })
-    return @{ today_header = $Now.ToString('MMMM d', [cultureinfo]'en-US'); current_year = $Now.Year; year_progress = $yearProgress; notice = ($warnings -join ' / '); month = $month.ToString('MMMM yyyy', [cultureinfo]'en-US').ToUpperInvariant(); day = $day.ToString('dddd, MMMM d', [cultureinfo]'en-US'); day_short = $day.ToString('ddd, MMM d', [cultureinfo]'en-US').ToUpperInvariant(); day_count = $selected.Count; all_visible = @($calendars | Where-Object { -not $_.visible }).Count -eq 0; week_numbers = $weekNumbers; weeks = $weeks; calendars = $calendars; events = $rows; statuses = @($Statuses); more = [Math]::Max(0, $selected.Count - $rows.Count); empty = $rows.Count -eq 0 }
+    return @{ today_header = $Now.ToString('MMMM d', [cultureinfo]'en-US'); current_year = $Now.Year; year_progress = $yearProgress; notice = ($warnings -join ' / '); month = $month.ToString('MMMM yyyy', [cultureinfo]'en-US').ToUpperInvariant(); day_index = [Math]::Max(0, [Math]::Min(41, ($day - $window.start).Days)); today_index = $(if ($Now.Date -ge $window.start -and $Now.Date -lt $window.end) { ($Now.Date - $window.start).Days } else { -1 }); days = $days; all_visible = @($calendars | Where-Object { -not $_.visible }).Count -eq 0; week_numbers = $weekNumbers; weeks = $weeks; calendars = $calendars; statuses = @($Statuses) }
 }

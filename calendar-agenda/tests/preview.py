@@ -126,6 +126,17 @@ fixtures = [('dark', dict(data=data)), ('light', dict(light, data=data)), ('akan
             ('opened', dict(data=controls, open=True)), ('many', dict(data=many)),
             ('lower-cap', dict(data=many, **{'popup-height': 620}))]
 for name, values in fixtures:
+    values = copy.deepcopy(values)
+    if 'data' in values:
+        snapshot = values['data']
+        snapshot['days'] = [dict(date=(start + datetime.timedelta(days=i)).isoformat(),
+                                 label=(start + datetime.timedelta(days=i)).strftime('%a, %b %d').upper(),
+                                 count=snapshot['day-count'], events=copy.deepcopy(snapshot['events']), more=snapshot['more'])
+                            for i in range(42)]
+        snapshot['day-index'] = 11
+        snapshot['today-index'] = 13
+        for old in ('day', 'day-short', 'day-count', 'events', 'more', 'empty'):
+            snapshot.pop(old, None)
     with tempfile.TemporaryDirectory() as temp:
         fixture = Path(temp) / 'fixture.json'
         fixture.write_text(json.dumps(values, ensure_ascii=False))
@@ -174,13 +185,13 @@ for name, values in fixtures:
                         assert not action_log.exists(), 'Busy controls must not queue duplicate actions'
                     else:
                         actions = action_log.read_text().splitlines() if action_log.exists() else []
-                        assert actions == ['toggle ' + 'b'*64, 'month 1', 'day 2026-09-12', 'join ' + '1'*64, 'refresh', 'show-all', 'today'], actions
+                        assert actions == ['toggle ' + 'b'*64, 'month 1', 'join ' + '1'*64, 'refresh', 'show-all'], actions
             finally:
                 process.terminate()
                 process.wait(timeout=5)
             errors.seek(0)
             assert not errors.read().strip(), 'Unexpected Slint warnings'
-assert sizes['empty'] < sizes['controls'] < sizes['dark'] <= 820, sizes
-assert sizes['opened'] == sizes['controls'], 'Deferred fitting must settle at the same content height'
+assert sizes['empty'] == sizes['controls'] == sizes['dark'] == 820, sizes
+assert sizes['opened'] == sizes['controls'], 'Opening must not change geometry'
 assert sizes['many'] == 820 and sizes['lower-cap'] == 620, sizes
 print(f'{len(fixtures)} Slint fixtures, native size limits and interactions passed: {output}')
