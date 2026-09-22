@@ -50,16 +50,19 @@ export component View inherits Window {
     callback dismissed();
     private property <int> selected-index: root.data.day-index;
     private property <string> loaded-month: "";
+    private property <bool> month-pending: false;
     private property <Day> selected: root.data.days[root.selected-index];
     changed data => {
         if root.loaded-month != root.data.month {
             root.selected-index = root.data.day-index;
             root.loaded-month = root.data.month;
+            root.month-pending = false;
         }
     }
+    changed provider-error => { if root.provider-error != "" { root.month-pending = false; } }
     changed open => { if root.open { root.action(""); } }
     // Persist once after interaction, never on the click-to-display path.
-    dismissed => { if root.selected.date != "" { root.action("day " + root.selected.date); } }
+    dismissed => { if !root.month-pending && root.loaded-month == root.data.month && root.selected.date != "" { root.action("day " + root.selected.date); } }
     pure function source-color(index: int) -> color {
         if index == 0 { return root.accent; }
         if index == 1 { return root.accent.mix(root.fg, 0.4); }
@@ -131,9 +134,9 @@ export component View inherits Window {
             }
             HorizontalLayout {
                 height: 24px;
-                AgendaButton { label: "‹"; accessible-label: "Previous month"; width: 18px; ink: root.muted; fill: root.surface; enabled: !root.busy; clicked => { root.action("month -1"); } }
+                AgendaButton { label: "‹"; accessible-label: "Previous month"; width: 18px; ink: root.muted; fill: root.surface; enabled: !root.busy; clicked => { root.month-pending = true; root.action("month -1"); } }
                 Text { text: root.data.month; color: root.muted; font-size: 9px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-                AgendaButton { label: "›"; accessible-label: "Next month"; width: 18px; ink: root.muted; fill: root.surface; enabled: !root.busy; clicked => { root.action("month 1"); } }
+                AgendaButton { label: "›"; accessible-label: "Next month"; width: 18px; ink: root.muted; fill: root.surface; enabled: !root.busy; clicked => { root.month-pending = true; root.action("month 1"); } }
             }
             Rectangle { height: 1px; background: root.overlay; }
             HorizontalLayout {
@@ -145,7 +148,7 @@ export component View inherits Window {
                     Text { text: "\{root.selected.count}"; color: root.muted; font-size: 8px; horizontal-alignment: center; vertical-alignment: center; }
                 }
                 Rectangle { horizontal-stretch: 1; }
-                AgendaButton { label: "Today"; width: 36px; ink: root.muted; fill: root.surface; enabled: root.data.today-index >= 0 || !root.busy; clicked => { if root.data.today-index >= 0 { root.selected-index = root.data.today-index; } else { root.action("today"); } } }
+                AgendaButton { label: "Today"; width: 36px; ink: root.muted; fill: root.surface; enabled: root.data.today-index >= 0 || !root.busy; clicked => { if root.data.today-index >= 0 { root.selected-index = root.data.today-index; } else { root.month-pending = true; root.action("today"); } } }
                 AgendaButton { label: "Refresh"; icon-only: true; icon: @image-url("refresh.svg"); width: 20px; ink: root.busy ? root.overlay : root.muted; fill: root.surface; enabled: !root.busy; clicked => { root.action("refresh"); } }
             }
             // Horizontal, scrollable checkbox chips replace the tall source panel.
