@@ -148,10 +148,6 @@ export component View inherits Window {
                         source: @image-url("assets/sprites/decor_ball.png"); colorize: root.accent; image-rendering: pixelated;
                     }
                     if root.data.stage == "teen": Image {
-                        x: 25px; y: 20px; width: 60px; height: 64px;
-                        source: @image-url("assets/sprites/decor_poster.png"); colorize: root.muted; image-rendering: pixelated; image-fit: contain;
-                    }
-                    if root.data.stage == "teen": Image {
                         x: room.width - 80px; y: 128px; width: 48px; height: 24px;
                         source: root.data.form == "teen_scruffy" ? @image-url("assets/sprites/decor_sock.png") : @image-url("assets/sprites/decor_controller.png");
                         colorize: root.muted; image-rendering: pixelated; image-fit: contain;
