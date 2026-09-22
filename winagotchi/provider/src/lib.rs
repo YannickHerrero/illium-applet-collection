@@ -13,6 +13,10 @@ pub struct State {
     pub care_count: u32,
     pub needs: [f64; 5], // hunger, dirt, tiredness, boredom, loneliness; high = needs care
     pub sleeping: bool,
+    #[serde(default)]
+    pub work_day: bool,
+    #[serde(default)]
+    pub paused: bool,
     pub session: String,
     pub last_ms: u64,
     pub remainder_ms: u64,
@@ -31,6 +35,8 @@ impl Default for State {
             care_count: 0,
             needs: [0.0; 5],
             sleeping: false,
+            work_day: false,
+            paused: false,
             session: String::new(),
             last_ms: 0,
             remainder_ms: 0,
@@ -74,6 +80,7 @@ impl State {
         if !forms.contains(&self.form.as_str())
             || !age_ok
             || self.generation == 0
+            || (self.paused && !self.work_day)
             || (self.stage() == "egg"
                 && (self.sleeping || !self.animation.is_empty() || self.needs != [0.0; 5]))
             || self.remainder_ms >= 60_000
@@ -102,6 +109,20 @@ impl State {
         } else {
             self.care_sum / self.care_count as f64
         }
+    }
+    /// Local Windows weekday (Sunday = 0) and minute of day only gate activity;
+    /// elapsed simulation time still comes exclusively from unbiased uptime.
+    pub fn advance_scheduled(&mut self, session: &str, now: u64, weekday: u16, minute: u16) {
+        let paused =
+            self.work_day && !((1..=5).contains(&weekday) && (540..1080).contains(&minute));
+        // Do not charge either boundary interval, including the first morning poll.
+        if paused || self.paused {
+            self.last_ms = now;
+            self.animation.clear();
+            self.animation_until_ms = 0;
+        }
+        self.paused = paused;
+        self.advance(session, now);
     }
     /// The clock is Windows unbiased uptime (excludes sleep/hibernation).
     /// Parent PID + creation time identifies a Winarchy run. Gaps over 90s
@@ -207,6 +228,13 @@ impl State {
         if action == "refresh" {
             return Ok(());
         }
+        if action == "work-day on" || action == "work-day off" {
+            self.work_day = action == "work-day on";
+            if !self.work_day {
+                self.paused = false;
+            }
+            return Ok(());
+        }
         if action == "dismiss-notice" {
             self.notice.clear();
             return Ok(());
@@ -221,12 +249,17 @@ impl State {
                 .ok_or("Generation limit reached")?;
             *self = Self {
                 generation,
+                work_day: self.work_day,
+                paused: self.paused,
                 session: self.session.clone(),
                 last_ms: now,
                 notice: "A fond farewell. A new egg begins the next generation.".into(),
                 ..Self::default()
             };
             return Ok(());
+        }
+        if self.paused {
+            return Err("Work day pause — disable Work day to provide care now".into());
         }
         if self.stage() == "egg" {
             return Err("Let the egg warm up first".into());
@@ -263,7 +296,10 @@ impl State {
         Ok(())
     }
     pub fn snapshot(&self) -> serde_json::Value {
-        let mood = if self.stage() == "egg" {
+        let sleeping = self.sleeping || (self.paused && self.stage() != "egg");
+        let mood = if self.paused {
+            "Work day pause — back Mon–Fri, 09:00–18:00"
+        } else if self.stage() == "egg" {
             "Warming up…"
         } else if self.sleeping {
             "Zzz…"
@@ -282,7 +318,9 @@ impl State {
         } else {
             "Happy to see you"
         };
-        let animation = if !self.animation.is_empty() {
+        let animation = if self.paused {
+            if sleeping { "sleep" } else { "idle" }
+        } else if !self.animation.is_empty() {
             self.animation.as_str()
         } else if self.sleeping {
             "sleep"
@@ -299,9 +337,10 @@ impl State {
             "stage": self.stage(), "form_label": self.form_label(),
             "age": format!("{}h {}m active", self.age_minutes / 60, self.age_minutes % 60),
             "care": self.care_average().round(), "needs": self.needs.map(|n| n.round()),
-            "sleeping": self.sleeping, "mood": mood, "animation": animation,
+            "work_day": self.work_day, "paused": self.paused,
+            "sleeping": sleeping, "mood": mood, "animation": animation,
             "sprite": format!("{}_{}", self.form, sprite_anim),
-            "icon": format!("{}_{}_a.png", self.form, if self.sleeping { "sleep" } else { "idle" }),
+            "icon": format!("{}_{}_a.png", self.form, if sleeping { "sleep" } else { "idle" }),
             "notice": self.notice,
         })
     }
@@ -321,6 +360,80 @@ mod tests {
             age_minutes: 70,
             ..State::default()
         }
+    }
+    #[test]
+    fn work_day_freezes_nights_and_weekends_without_catchup() {
+        let mut p = child();
+        p.action("work-day on", 0).unwrap();
+        p.advance_scheduled("run", 0, 5, 1078);
+        p.advance_scheduled("run", 60_000, 5, 1079);
+        let before = (
+            p.age_minutes,
+            p.needs,
+            p.care_sum,
+            p.care_count,
+            p.remainder_ms,
+        );
+        for (now, day, minute) in [
+            (90_000, 5, 1080),
+            (120_000, 6, 600),
+            (150_000, 0, 600),
+            (180_000, 1, 539),
+        ] {
+            p.advance_scheduled("run", now, day, minute);
+            assert!(p.paused);
+            assert_eq!(
+                before,
+                (
+                    p.age_minutes,
+                    p.needs,
+                    p.care_sum,
+                    p.care_count,
+                    p.remainder_ms
+                )
+            );
+            assert_eq!(p.snapshot()["animation"], "sleep");
+            assert!(p.action("feed", now).is_err());
+            p.validate().unwrap();
+        }
+        p.advance_scheduled("run", 210_000, 1, 540);
+        assert!(!p.paused);
+        assert_eq!(p.age_minutes, before.0);
+        p.advance_scheduled("run", 270_000, 1, 541);
+        assert_eq!(p.age_minutes, before.0 + 1);
+        p.action("feed", 270_000).unwrap();
+    }
+    #[test]
+    fn work_day_defaults_toggle_eggs_and_generations() {
+        let mut old = serde_json::to_value(State::default()).unwrap();
+        old.as_object_mut().unwrap().remove("work_day");
+        old.as_object_mut().unwrap().remove("paused");
+        let mut p: State = serde_json::from_value(old).unwrap();
+        assert!(!p.work_day);
+        p.advance_scheduled("run", 0, 0, 0);
+        p.advance_scheduled("run", 60_000, 0, 1);
+        assert_eq!(p.age_minutes, 1);
+        p.action("work-day on", 60_000).unwrap();
+        p.advance_scheduled("run", 60_000, 0, 1);
+        assert!(p.paused);
+        assert_eq!(p.snapshot()["icon"], "egg_idle_a.png");
+        p.validate().unwrap();
+        p.action("work-day off", 60_000).unwrap();
+        p.advance_scheduled("run", 120_000, 0, 2);
+        assert_eq!(p.age_minutes, 2);
+        let mut adult = State {
+            form: "adult_gremlin".into(),
+            age_minutes: 1510,
+            work_day: true,
+            paused: true,
+            ..State::default()
+        };
+        adult.action("farewell 1", 0).unwrap();
+        assert!(adult.work_day && adult.paused);
+        adult.validate().unwrap();
+        let saved = serde_json::to_string(&adult).unwrap();
+        let restored: State = serde_json::from_str(&saved).unwrap();
+        assert!(restored.work_day && restored.paused);
     }
     #[test]
     fn growth_and_generation() {

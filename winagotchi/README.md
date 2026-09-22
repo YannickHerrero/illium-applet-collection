@@ -14,6 +14,12 @@ Click its bar icon to open the room. Five need gauges run from **0 (fine) to 100
 
 Care commits immediately; the short eating/playing/bubble animation is visual feedback, not a transaction waiting for the animation to end. The popup disables new care while an action is pending. A wash gesture sends one bounded command on release, never one process per mouse movement.
 
+### Work day mode
+
+Enable **Work day** in the room to limit activity to **Monday–Friday, 09:00–18:00**, using Windows local time. Outside those hours (including weekends), age, all needs and stage care freeze. The pet displays its sleeping sprite (eggs stay eggs); this is a pause, not fatigue recovery. Nothing catches up in the morning. Care controls are disabled during the pause; turn Work day off to interact outside the schedule.
+
+The option is off by default, saved with your pet and retained across generations. Existing saves load with it off. It does not undo an existing evolution: an adult gremlin remains a gremlin until you start a new generation with **Let it go…**. During work hours, normal care is still needed. Schedule boundaries may discard up to one polling interval of activity, rather than charge unattended time.
+
 Growth counts **active minutes**, not time since installation:
 
 | Stage | Total active age | Branch |
@@ -38,7 +44,7 @@ The Windows provider uses `QueryUnbiasedInterruptTime` (uptime excluding sleep/h
 - Restarting Winarchy does not charge offline time.
 - Sleep/hibernation does not advance age or needs.
 - Gaps over 90 seconds between provider observations are treated as absence, with no catch-up. Keep the manifest's 30-second cadence. Long scheduling stalls or removing the applet temporarily may undercount active time; a removal/re-add under 90 seconds can count that short gap.
-- Fractional active minutes survive normal restarts. No Windows idle-time detection: leaving an awake, running Winarchy unattended still counts.
+- Fractional active minutes survive normal restarts. No Windows idle-time detection: leaving an awake, running Winarchy unattended still counts, except outside the enabled Work day schedule.
 
 Private data lives **outside the repository and Winarchy's watched config tree**:
 

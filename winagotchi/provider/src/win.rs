@@ -5,10 +5,16 @@ use windows::Win32::{
             CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
             TH32CS_SNAPPROCESS,
         },
+        SystemInformation::GetLocalTime,
         Threading::{GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION},
         WindowsProgramming::QueryUnbiasedInterruptTime,
     },
 };
+pub fn local_schedule() -> (u16, u16) {
+    let time = unsafe { GetLocalTime() };
+    (time.wDayOfWeek, time.wHour * 60 + time.wMinute)
+}
+
 struct Handle(HANDLE);
 impl Drop for Handle {
     fn drop(&mut self) {

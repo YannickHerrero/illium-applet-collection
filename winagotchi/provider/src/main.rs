@@ -22,8 +22,11 @@ fn run() -> Result<(), String> {
     let _lock = storage::lock(&dir)?;
     let (session, now) = win::clock()?;
     let mut pet = storage::load(&dir)?;
-    pet.advance(&session, now);
+    let (weekday, minute) = win::local_schedule();
+    pet.advance_scheduled(&session, now, weekday, minute);
     pet.action(action, now)?;
+    // Apply a changed schedule immediately, without advancing time twice.
+    pet.advance_scheduled(&session, now, weekday, minute);
     storage::save(&dir, &pet)?;
     println!("{}", pet.snapshot());
     Ok(())

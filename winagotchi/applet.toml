@@ -3,4 +3,4 @@ command = ["winagotchi.exe"]
 icon = "{icon}"
 interval = "30s"
 focusable = true
-popup = { width = 410, height = 610 }
+popup = { width = 410, height = 654 }
