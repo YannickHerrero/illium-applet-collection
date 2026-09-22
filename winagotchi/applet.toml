@@ -3,4 +3,8 @@ command = ["winagotchi.exe"]
 icon = "{icon}"
 interval = "30s"
 focusable = true
-popup = { width = 410, height = 654 }
+popup = { width = 410, height = 610 }
+
+[settings]
+# Pause outside Monday–Friday, 09:00–18:00 (Windows local time).
+work_day = "false"

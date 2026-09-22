@@ -16,9 +16,18 @@ Care commits immediately; the short eating/playing/bubble animation is visual fe
 
 ### Work day mode
 
-Enable **Work day** in the room to limit activity to **Monday–Friday, 09:00–18:00**, using Windows local time. Outside those hours (including weekends), age, all needs and stage care freeze. The pet displays its sleeping sprite (eggs stay eggs); this is a pause, not fatigue recovery. Nothing catches up in the morning. Care controls are disabled during the pause; turn Work day off to interact outside the schedule.
+Enable work day mode only in `applets/winagotchi/applet.toml`:
 
-The option is off by default, saved with your pet and retained across generations. Existing saves load with it off. It does not undo an existing evolution: an adult gremlin remains a gremlin until you start a new generation with **Let it go…**. During work hours, normal care is still needed. Schedule boundaries may discard up to one polling interval of activity, rather than charge unattended time.
+```toml
+[settings]
+work_day = "true"
+```
+
+Winarchy hot-reloads this configuration. Set `"false"` (the default), or remove the setting, to disable it. Configuration overrides the value in existing pet saves on every provider invocation; there is no interface toggle or schedule label.
+
+Activity is limited to **Monday–Friday, 09:00–18:00**, using Windows local time. Outside those hours (including weekends), age, all needs and stage care freeze. The pet displays its sleeping sprite (eggs stay eggs); this is a pause, not fatigue recovery. Nothing catches up in the morning. Care controls are disabled during the pause; disable the setting to interact outside the schedule.
+
+The option applies across generations. It does not undo an existing evolution: an adult gremlin remains a gremlin until you start a new generation with **Let it go…**. During work hours, normal care is still needed. Schedule boundaries may discard up to one polling interval of activity, rather than charge unattended time.
 
 Growth counts **active minutes**, not time since installation:
 

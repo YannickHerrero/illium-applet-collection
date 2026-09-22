@@ -228,13 +228,6 @@ impl State {
         if action == "refresh" {
             return Ok(());
         }
-        if action == "work-day on" || action == "work-day off" {
-            self.work_day = action == "work-day on";
-            if !self.work_day {
-                self.paused = false;
-            }
-            return Ok(());
-        }
         if action == "dismiss-notice" {
             self.notice.clear();
             return Ok(());
@@ -259,7 +252,7 @@ impl State {
             return Ok(());
         }
         if self.paused {
-            return Err("Work day pause — disable Work day to provide care now".into());
+            return Err("Your companion is resting".into());
         }
         if self.stage() == "egg" {
             return Err("Let the egg warm up first".into());
@@ -298,7 +291,7 @@ impl State {
     pub fn snapshot(&self) -> serde_json::Value {
         let sleeping = self.sleeping || (self.paused && self.stage() != "egg");
         let mood = if self.paused {
-            "Work day pause — back Mon–Fri, 09:00–18:00"
+            "Zzz…"
         } else if self.stage() == "egg" {
             "Warming up…"
         } else if self.sleeping {
@@ -337,7 +330,7 @@ impl State {
             "stage": self.stage(), "form_label": self.form_label(),
             "age": format!("{}h {}m active", self.age_minutes / 60, self.age_minutes % 60),
             "care": self.care_average().round(), "needs": self.needs.map(|n| n.round()),
-            "work_day": self.work_day, "paused": self.paused,
+            "paused": self.paused,
             "sleeping": sleeping, "mood": mood, "animation": animation,
             "sprite": format!("{}_{}", self.form, sprite_anim),
             "icon": format!("{}_{}_a.png", self.form, if sleeping { "sleep" } else { "idle" }),
@@ -364,7 +357,7 @@ mod tests {
     #[test]
     fn work_day_freezes_nights_and_weekends_without_catchup() {
         let mut p = child();
-        p.action("work-day on", 0).unwrap();
+        p.work_day = true;
         p.advance_scheduled("run", 0, 5, 1078);
         p.advance_scheduled("run", 60_000, 5, 1079);
         let before = (
@@ -413,12 +406,15 @@ mod tests {
         p.advance_scheduled("run", 0, 0, 0);
         p.advance_scheduled("run", 60_000, 0, 1);
         assert_eq!(p.age_minutes, 1);
-        p.action("work-day on", 60_000).unwrap();
+        assert!(p.action("work-day on", 60_000).is_err());
+        p.work_day = true;
         p.advance_scheduled("run", 60_000, 0, 1);
         assert!(p.paused);
         assert_eq!(p.snapshot()["icon"], "egg_idle_a.png");
         p.validate().unwrap();
-        p.action("work-day off", 60_000).unwrap();
+        assert!(p.action("work-day off", 60_000).is_err());
+        p.work_day = false;
+        p.advance_scheduled("run", 60_000, 0, 1);
         p.advance_scheduled("run", 120_000, 0, 2);
         assert_eq!(p.age_minutes, 2);
         let mut adult = State {

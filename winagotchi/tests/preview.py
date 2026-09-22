@@ -17,7 +17,7 @@ def fixture(form='child'):
     stage = form.split('_')[0]
     return dict(ready=True, generation=3, form=form, stage=stage,
                 **{'form-label': 'a ' + form.replace('_', ' '), 'age': '8h 12m active',
-                   'work-day': False, 'paused': False, 'care': 78, 'needs': [75, 65, 12, 80, 15], 'sleeping': False,
+                   'paused': False, 'care': 78, 'needs': [75, 65, 12, 80, 15], 'sleeping': False,
                    'mood': 'Hungry — time for a snack!', 'animation': 'idle', 'notice': ''})
 
 
@@ -52,8 +52,8 @@ def main():
         ('confirmation', {'data': fixture('adult_ace')}),
         ('error', {'data': fixture(), 'provider-error': 'Save is busy. Try again.'}),
         ('wash', {'data': fixture()}),
-        ('work-day', {'data': dict(fixture(), **{'work-day': True, 'paused': True,
-            'sleeping': True, 'animation': 'sleep', 'mood': 'Work day pause — back Mon–Fri, 09:00–18:00'})}),
+        ('work-day', {'data': dict(fixture(), **{'paused': True,
+            'sleeping': True, 'animation': 'sleep', 'mood': 'Zzz…'})}),
         ('animated', {'data': fixture(), 'open': True}),
         ('scale-200', {'data': fixture('teen_scruffy')}),
     ]
@@ -74,7 +74,7 @@ def main():
                     assert p.poll() is None, text
                     assert not text.strip(), text
                     if name == 'wash': mouse(click(205, 485))
-                    if name == 'confirmation': mouse(click(205, 619))
+                    if name == 'confirmation': mouse(click(205, 575))
                     time.sleep(.2)
                     image = ImageGrab.grab(); image.save(output / f'{name}.png')
                     if name == 'animated':
@@ -97,7 +97,7 @@ def main():
                         mouse(click(205, 170) + click(75, 485)); time.sleep(.2)
                         assert not action_log.exists(), 'Paused care must not emit actions'
                         mouse(click(205, 529)); time.sleep(.3)
-                        assert action_log.read_text().splitlines() == ['work-day off']
+                        assert not action_log.exists(), 'No schedule toggle may remain in the UI'
                     if name == 'wash':
                         mouse([('move', 195, 170), ('down',), ('move', 225, 175), ('move', 185, 170), ('move', 225, 175), ('up',)])
                         time.sleep(.3)
@@ -108,7 +108,7 @@ def main():
                         # A click where the pet was must not pass through the modal.
                         mouse(click(205, 170)); time.sleep(.2)
                         assert not action_log.exists(), 'Confirmation must block the room'
-                        mouse(click(205, 396)); time.sleep(.3)
+                        mouse(click(205, 374)); time.sleep(.3)
                         assert action_log.read_text().splitlines() == ['farewell 3'], 'Goodbye must pin the displayed generation'
                 finally:
                     if p.poll() is None: p.terminate()
