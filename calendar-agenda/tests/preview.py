@@ -38,6 +38,40 @@ def click(xpos, ypos):
     time.sleep(.2)
 
 
+def window_geometry(expected_width):
+    """Inspect the native X11 window, not merely the painted content rectangle."""
+    x = ctypes.CDLL('libX11.so.6')
+    handle = ctypes.c_void_p
+    ulong = ctypes.c_ulong
+    uint = ctypes.c_uint
+    x.XOpenDisplay.argtypes = [ctypes.c_char_p]
+    x.XOpenDisplay.restype = handle
+    x.XDefaultRootWindow.argtypes = [handle]
+    x.XDefaultRootWindow.restype = ulong
+    x.XQueryTree.argtypes = [handle, ulong, ctypes.POINTER(ulong), ctypes.POINTER(ulong), ctypes.POINTER(ctypes.POINTER(ulong)), ctypes.POINTER(uint)]
+    x.XGetGeometry.argtypes = [handle, ulong, ctypes.POINTER(ulong), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(uint), ctypes.POINTER(uint), ctypes.POINTER(uint), ctypes.POINTER(uint)]
+    x.XFree.argtypes = [handle]
+    x.XCloseDisplay.argtypes = [handle]
+    display = x.XOpenDisplay(None)
+    assert display
+    children = ctypes.POINTER(ulong)()
+    try:
+        root, parent, count = ulong(), ulong(), uint()
+        assert x.XQueryTree(display, x.XDefaultRootWindow(display), ctypes.byref(root), ctypes.byref(parent), ctypes.byref(children), ctypes.byref(count))
+        matches = []
+        for i in range(count.value):
+            xpos, ypos = ctypes.c_int(), ctypes.c_int()
+            width, height, border, depth = uint(), uint(), uint(), uint()
+            if x.XGetGeometry(display, children[i], ctypes.byref(root), ctypes.byref(xpos), ctypes.byref(ypos), ctypes.byref(width), ctypes.byref(height), ctypes.byref(border), ctypes.byref(depth)) and width.value == expected_width:
+                matches.append((xpos.value, ypos.value, width.value, height.value))
+        assert len(matches) == 1, matches
+        return matches[0]
+    finally:
+        if children:
+            x.XFree(children)
+        x.XCloseDisplay(display)
+
+
 ROOT = Path(__file__).resolve().parents[1]
 output = Path(sys.argv[1])
 output.mkdir(parents=True, exist_ok=True)
@@ -81,10 +115,16 @@ failed = copy.deepcopy(data)
 failed['notice'] = 'Second source: Calendar unavailable. Using cached data.'
 light = dict(bg='#eff1f5', surface='#e6e9ef', overlay='#ccd0da', fg='#4c4f69', muted='#6c6f85', accent='#8839ef')
 akane = dict(bg='#12101c', surface='#221c2c', overlay='#2c2438', fg='#f0c4a8', muted='#8a6e6c', accent='#e15a48')
+many = copy.deepcopy(controls)
+many['events'] = [event(i % 9 + 1, f'Meeting {i + 1}', '09:00 - 10:00', 'Room 201', join=True) for i in range(30)]
+many['day-count'] = 30
+sizes = {}
 fixtures = [('dark', dict(data=data)), ('light', dict(light, data=data)), ('akane', dict(akane, data=data)),
             ('akane-125', dict(akane, data=data)), ('scale-150', dict(data=data)), ('empty', dict(data=empty)),
             ('controls', dict(data=controls)), ('busy', dict(data=controls, busy=True)),
-            ('failed-source', dict(data=failed)), ('initial-error', {'provider-error': 'Synthetic failure'})]
+            ('failed-source', dict(data=failed)), ('initial-error', {'provider-error': 'Synthetic failure'}),
+            ('opened', dict(data=controls, open=True)), ('many', dict(data=many)),
+            ('lower-cap', dict(data=many, **{'popup-height': 620}))]
 for name, values in fixtures:
     with tempfile.TemporaryDirectory() as temp:
         fixture = Path(temp) / 'fixture.json'
@@ -114,8 +154,13 @@ for name, values in fixtures:
                     raise AssertionError(f'{name}: no frame rendered')
                 # Let conditional repeaters and font loading finish before inspecting pixels.
                 time.sleep(.7)
-                image = ImageGrab.grab().crop((0, 0, round(440*scale), round(820*scale)))
+                xpos, ypos, width, height = window_geometry(round(440*scale))
+                sizes[name] = height / scale
+                assert height <= round(values.get('popup-height', 820) * scale), f'{name}: exceeded maximum height'
+                image = ImageGrab.grab().crop((xpos, ypos, xpos + width, ypos + height))
                 image.save(output / (name + '.png'))
+                if name == 'opened':
+                    assert action_log.read_text().splitlines() == [''], 'Opening refreshes only once'
                 if name in ('dark', 'light', 'akane', 'akane-125', 'scale-150'):
                     # Nine cards fit without scrolling. Numeric locations must not be
                     # clipped by fractional text metrics at 125% Windows scaling.
@@ -135,4 +180,7 @@ for name, values in fixtures:
                 process.wait(timeout=5)
             errors.seek(0)
             assert not errors.read().strip(), 'Unexpected Slint warnings'
-print(f'{len(fixtures)} synthetic Slint fixtures rendered: {output}')
+assert sizes['empty'] < sizes['controls'] < sizes['dark'] <= 820, sizes
+assert sizes['opened'] == sizes['controls'], 'Deferred fitting must settle at the same content height'
+assert sizes['many'] == 820 and sizes['lower-cap'] == 620, sizes
+print(f'{len(fixtures)} Slint fixtures, native size limits and interactions passed: {output}')

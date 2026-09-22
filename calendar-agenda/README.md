@@ -44,7 +44,12 @@ A multiline `right` array requires manually adding `calendar-agenda` first.
 - The header shows today's local date and progress through the current year (including
   leap years). The percentage is completed whole percent; browsing another month does
   not change this indicator.
-- The narrow 440×820 logical-pixel popup uses a Sunday-first grid, ISO week labels
+- The popup is 440 logical pixels wide and fits its content vertically, up to the
+  manifest's `popup.height` ceiling (820 by default, further limited by Winarchy to
+  the monitor). Empty days and small agendas leave no reserved blank event area;
+  only the event list scrolls once the ceiling is reached. It refits after date/filter
+  changes and shortly after opening, after Winarchy's initial native placement.
+  The grid is Sunday-first, with ISO week labels
   (the week containing each row's Thursday) and up to three source-colored event dots
   per day. Previous/next month sit **below** the grid; Today is beside the day's count.
 - Calendar chips are compact checkboxes: click to filter **both** daily rows and month
@@ -182,6 +187,8 @@ cleanup without opening Outlook. The preview requires
 Akane, 125%/150% scale, empty, busy and failed-source data, and never launches Outlook.
 It checks that nine compact cards fit, numeric locations survive fractional scaling,
 checkbox/day/month/meeting/All/Today callbacks, and that busy controls reject clicks.
+Native window dimensions are checked for empty/small/large agendas, the deferred
+opening fit and a custom lower height ceiling.
 Set `CALENDAR_AGENDA_FONT_DIR` to a local directory with JetBrainsMono NFM font files
 for previews matching Windows; this does not install or bundle the fonts.
 `tests/live.py` is an explicit opt-in read-only smoke test from WSL on a configured

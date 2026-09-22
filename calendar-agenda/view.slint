@@ -30,7 +30,11 @@ export component View inherits Window {
     in property <length> popup-width: 440px;
     in property <length> popup-height: 820px;
     width: popup-width;
-    height: popup-height;
+    // The manifest supplies the ceiling, not a fixed empty area below the agenda.
+    private property <length> content-height: min(root.popup-height, content.preferred-height);
+    // Winarchy initially positions the native window at the manifest's maximum size.
+    // Apply the content size after that placement, including on every reopening.
+    height: root.open && !root.fit-ready ? root.popup-height : root.content-height;
     // Installed with the user's Scoop font pack; Windows falls back if unavailable.
     default-font-family: "JetBrainsMono NFM";
     default-font-size: 10px;
@@ -46,9 +50,16 @@ export component View inherits Window {
     in property <Data> data;
     callback action(string);
     private property <bool> was-open: false;
+    private property <bool> fit-ready: false;
     changed open => {
+        root.fit-ready = false;
         if root.open && !root.was-open { root.action(""); }
         root.was-open = root.open;
+    }
+    Timer {
+        interval: 100ms;
+        running: root.open && !root.fit-ready;
+        triggered => { root.fit-ready = true; }
     }
     pure function source-color(index: int) -> color {
         if index == 0 { return root.accent; }
@@ -62,7 +73,7 @@ export component View inherits Window {
     Rectangle {
         border-width: 1px;
         border-color: root.accent.mix(root.overlay, 0.6);
-        VerticalLayout {
+        content := VerticalLayout {
             padding-left: 50px; padding-right: 50px;
             padding-top: 20px; padding-bottom: 16px;
             spacing: 6px;
@@ -162,10 +173,12 @@ export component View inherits Window {
                 }
             }
             ScrollView {
+                min-height: 20px;
+                preferred-height: max(20px, event-list.preferred-height);
                 vertical-stretch: 1;
                 viewport-width: self.width;
                 horizontal-scrollbar-policy: always-off;
-                VerticalLayout {
+                event-list := VerticalLayout {
                     spacing: 4px;
                     for event in root.data.events: Rectangle {
                         height: 32px + (event.location != "" ? 12px : 0px) + (event.join ? 20px : 0px);
