@@ -142,10 +142,10 @@ export component View inherits Window {
             HorizontalLayout {
                 height: 22px;
                 spacing: 6px;
-                Text { text: root.selected.label; color: root.fg; font-size: 9px; font-weight: 600; vertical-alignment: center; horizontal-stretch: 0; }
+                Text { text: root.data.days.length == 0 ? "Loading calendar…" : root.selected.label; color: root.fg; font-size: 9px; font-weight: 600; vertical-alignment: center; horizontal-stretch: 0; }
                 Rectangle {
                     width: 20px; height: 14px; background: root.surface;
-                    Text { text: "\{root.selected.count}"; color: root.muted; font-size: 8px; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { text: root.data.days.length == 0 ? "…" : "\{root.selected.count}"; color: root.muted; font-size: 8px; horizontal-alignment: center; vertical-alignment: center; }
                 }
                 Rectangle { horizontal-stretch: 1; }
                 AgendaButton { label: "Today"; width: 36px; ink: root.muted; fill: root.surface; enabled: root.data.today-index >= 0 || !root.busy; clicked => { if root.data.today-index >= 0 { root.selected-index = root.data.today-index; } else { root.month-pending = true; root.action("today"); } } }
@@ -182,6 +182,13 @@ export component View inherits Window {
                 horizontal-scrollbar-policy: always-off;
                 event-list := VerticalLayout {
                     spacing: 4px;
+                    if root.data.days.length == 0: VerticalLayout {
+                        spacing: 10px;
+                        for ratio in [0.7, 0.9, 0.6]: Rectangle {
+                            height: 14px;
+                            Rectangle { width: parent.width * ratio; height: 100%; background: root.overlay; border-radius: 3px; }
+                        }
+                    }
                     for event in root.selected.events: Rectangle {
                         height: 32px + (event.location != "" ? 12px : 0px) + (event.join ? 20px : 0px);
                         background: root.surface;
@@ -197,7 +204,7 @@ export component View inherits Window {
                             clicked => { root.action("join " + event.key); }
                         }
                     }
-                    if root.selected.count == 0: Text { text: "No events in visible calendars"; color: root.muted; font-size: 9px; }
+                    if root.data.days.length > 0 && root.selected.count == 0: Text { text: "No events in visible calendars"; color: root.muted; font-size: 9px; }
                     if root.selected.more > 0: Text { text: "\{root.selected.more} more events — open the source calendar to see all"; color: root.muted; font-size: 9px; wrap: word-wrap; }
                 }
             }
