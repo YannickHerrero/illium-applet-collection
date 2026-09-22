@@ -1,0 +1,12 @@
+# Local task list; the provider owns the store and prints the whole list.
+icon = "icon.svg"
+label = "{bar_label}"
+interval = "10m"
+# A text field needs the keyboard, so the popup takes focus while it is open.
+focusable = true
+popup = { width = 380, height = 470 }
+
+[settings]
+# Absolute Windows path of the task store; empty means
+# %LOCALAPPDATA%\winarchy-applet-collection\todo\tasks.json.
+store = ""

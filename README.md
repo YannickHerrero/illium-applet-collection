@@ -62,6 +62,14 @@ python3 -B agent-orchestrator/install.py --windows-home /mnt/c/Users/<WindowsUse
 python3 -B dictate/install.py --windows-home /mnt/c/Users/<WindowsUser>
 ```
 
+## Todo
+
+[`todo/`](todo/README.md) is a local task list in the bar: type a task and press Enter, tick it off, delete it, clear the completed ones. The bar icon carries the number still open, and the installer folds it into the drawer when the bar has one. A PowerShell provider owns the list and writes it to a JSON file under `%LOCALAPPDATA%`, outside the watched configuration tree, one whole file at a time. Nothing leaves the machine, and nothing runs between clicks.
+
+```sh
+python3 -B todo/install.py --windows-home /mnt/c/Users/<WindowsUser>
+```
+
 ## Claude usage
 
 `claude-usage/` displays Claude Code's **account quota**, not context-window fullness or locally estimated token costs. The initial data source is the official Claude Code statusline JSON (`rate_limits.five_hour` and `rate_limits.seven_day`).
@@ -84,7 +92,7 @@ This preserves the current statusline, backs up settings, and adds the applet to
 
 ## Development
 
-Claude Usage uses Python 3.11+ (standard library) for its WSL relay/setup and Windows PowerShell 5.1 for its provider. Activity Monitor and Winagotchi use Rust 1.89+ to build standalone Windows executables, with Python only for installation. Herdr uses bash 5 and jq in WSL; Agent Orchestrator uses Python 3.11+ (standard library) in WSL; Dictation uses Windows PowerShell 5.1. All use Slint 1.12.1 views. Keep all generated data and private settings out of Git.
+Claude Usage uses Python 3.11+ (standard library) for its WSL relay/setup and Windows PowerShell 5.1 for its provider. Activity Monitor and Winagotchi use Rust 1.89+ to build standalone Windows executables, with Python only for installation. Herdr uses bash 5 and jq in WSL; Agent Orchestrator uses Python 3.11+ (standard library) in WSL; Dictation and Todo use Windows PowerShell 5.1. All use Slint 1.12.1 views. Keep all generated data and private settings out of Git.
 
 Atomic commits must use `YannickHerrero <yannick.herrero@proton.me>`. No remote or publication is configured automatically.
 

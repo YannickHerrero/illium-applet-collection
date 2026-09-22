@@ -1,0 +1,192 @@
+struct Item { id: string, text: string, done: bool }
+struct Data { bar-label: string, headline: string, remaining: int, done: int, tasks: [Item], error: string }
+
+component IconButton inherits Rectangle {
+    in property <image> source;
+    in property <color> tint;
+    in property <color> hover-tint;
+    in property <length> size: 16px;
+    in property <bool> enabled: true;
+    callback clicked();
+    border-radius: 4px;
+    background: touch.has-hover && enabled ? root.hover-tint.with-alpha(0.14) : transparent;
+    opacity: enabled ? 1 : 0.35;
+    Image {
+        source: root.source; width: root.size; height: root.size;
+        colorize: touch.has-hover && root.enabled ? root.hover-tint : root.tint;
+    }
+    touch := TouchArea { enabled: root.enabled; clicked => { root.clicked(); } }
+}
+
+component Row inherits Rectangle {
+    in property <string> text;
+    in property <bool> done;
+    in property <color> bg;
+    in property <color> fg;
+    in property <color> muted;
+    in property <color> accent;
+    in property <color> surface;
+    in property <color> overlay;
+    callback toggled();
+    callback deleted();
+    height: 36px; border-radius: 6px;
+    background: hover.has-hover ? root.surface.with-alpha(0.55) : transparent;
+    hover := TouchArea { mouse-cursor: default; }
+    HorizontalLayout {
+        padding-left: 8px; padding-right: 6px; spacing: 10px;
+        Rectangle {
+            width: 18px;
+            box := Rectangle {
+                width: 18px; height: 18px; border-radius: 4px;
+                border-width: root.done ? 0px : 2px;
+                border-color: check-touch.has-hover ? root.accent : root.muted;
+                background: root.done ? root.accent : transparent;
+                Image {
+                    source: @image-url("check.svg"); width: 12px; height: 12px;
+                    colorize: root.bg; visible: root.done;
+                }
+            }
+            check-touch := TouchArea { clicked => { root.toggled(); } }
+        }
+        Rectangle {
+            horizontal-stretch: 1;
+            label := Text {
+                x: 0; width: 100%;
+                text: root.text; color: root.done ? root.muted : root.fg;
+                font-size: 13px; vertical-alignment: center; overflow: elide;
+            }
+            // Slint's Text has no strike-through, so a completed task is
+            // crossed out with a line as wide as the glyphs themselves.
+            Rectangle {
+                x: 0; y: parent.height / 2; height: 1px;
+                width: min(label.preferred-width, parent.width);
+                background: root.muted; visible: root.done;
+            }
+        }
+        IconButton {
+            width: 26px; source: @image-url("trash.svg"); size: 15px;
+            tint: root.overlay; hover-tint: root.accent;
+            clicked => { root.deleted(); }
+        }
+    }
+}
+
+export component View inherits Window {
+    no-frame: true;
+    in property <length> popup-width: 380px;
+    in property <length> popup-height: 470px;
+    width: popup-width; height: popup-height;
+    in property <color> bg: #1e1e2e;
+    in property <color> surface: #313244;
+    in property <color> overlay: #45475a;
+    in property <color> fg: #cdd6f4;
+    in property <color> muted: #a6adc8;
+    in property <color> accent: #cba6f7;
+    in property <color> red: #f38ba8;
+    in property <Data> data;
+    in property <bool> busy: false;
+    in property <bool> open: false;
+    in property <string> provider-error;
+    callback action(string, string);
+    callback dismissed();
+
+    property <string> draft: "";
+    // The store only changes from this popup, so opening it is the one moment
+    // the list can be stale.
+    changed open => {
+        if (open) {
+            if (!busy) { root.action("refresh", ""); }
+            draft-input.focus();
+        }
+    }
+    dismissed => { root.draft = ""; draft-input.text = ""; }
+
+    function add() {
+        if (root.draft == "" || root.busy) { return; }
+        root.action("add", root.draft);
+        root.draft = "";
+        draft-input.text = "";
+        draft-input.focus();
+    }
+
+    background: bg;
+    Rectangle {
+        border-width: 1px; border-color: root.accent;
+        VerticalLayout {
+            padding: 18px; spacing: 12px;
+            HorizontalLayout {
+                height: 32px; spacing: 12px;
+                Image { source: @image-url("icon.svg"); width: 24px; height: 24px; colorize: root.accent; }
+                VerticalLayout {
+                    horizontal-stretch: 1; spacing: 2px;
+                    Text { text: "Todo"; color: root.fg; font-size: 16px; font-weight: 600; }
+                    Text { text: root.data.headline; color: root.muted; font-size: 11px; }
+                }
+            }
+            HorizontalLayout {
+                height: 34px; spacing: 8px;
+                Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: 6px; border-width: 1px;
+                    border-color: draft-input.has-focus ? root.accent : root.overlay;
+                    background: root.surface.with-alpha(0.45);
+                    draft-input := TextInput {
+                        x: 10px; width: parent.width - 20px; height: parent.height;
+                        color: root.fg; font-size: 13px; single-line: true; vertical-alignment: center;
+                        selection-background-color: root.accent; selection-foreground-color: root.bg;
+                        edited => { root.draft = self.text; }
+                        accepted => { root.add(); }
+                    }
+                    Text {
+                        x: 11px; text: "Add a task…"; color: root.muted; font-size: 13px;
+                        vertical-alignment: center; visible: root.draft == "";
+                    }
+                }
+                IconButton {
+                    width: 34px; source: @image-url("plus.svg"); size: 18px;
+                    tint: root.draft == "" ? root.overlay : root.accent; hover-tint: root.accent;
+                    enabled: root.draft != "" && !root.busy;
+                    clicked => { root.add(); }
+                }
+            }
+            Rectangle { height: 1px; background: root.overlay; }
+            Flickable {
+                vertical-stretch: 1;
+                viewport-height: max(self.height, list.preferred-height);
+                list := VerticalLayout {
+                    alignment: start; spacing: 2px;
+                    for task in root.data.tasks: Row {
+                        text: task.text; done: task.done;
+                        bg: root.bg; fg: root.fg; muted: root.muted; accent: root.accent; surface: root.surface; overlay: root.overlay;
+                        toggled => { if (!root.busy) { root.action("toggle", task.id); } }
+                        deleted => { if (!root.busy) { root.action("delete", task.id); } }
+                    }
+                    if root.data.tasks.length == 0: Text {
+                        text: "Nothing planned.\nType above to add your first task.";
+                        color: root.muted; font-size: 12px; wrap: word-wrap;
+                    }
+                }
+            }
+            if root.provider-error != "" || root.data.error != "": Text {
+                text: root.provider-error != "" ? root.provider-error : root.data.error;
+                color: root.red; font-size: 11px; wrap: word-wrap; max-height: 32px; overflow: elide;
+            }
+            HorizontalLayout {
+                height: 18px; spacing: 10px;
+                Text {
+                    text: "Clear completed";
+                    color: clear-touch.has-hover ? root.accent : root.muted;
+                    font-size: 12px; vertical-alignment: center;
+                    visible: root.data.done > 0;
+                    width: root.data.done > 0 ? self.preferred-width : 0px;
+                    clear-touch := TouchArea { clicked => { if (!root.busy) { root.action("clear-completed", ""); } } }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                Text {
+                    text: root.data.done > 0 ? "\{root.data.done} done" : "";
+                    color: root.muted; font-size: 11px; vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
