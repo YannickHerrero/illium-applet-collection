@@ -1,5 +1,5 @@
 struct Item { id: string, text: string, done: bool }
-struct Data { bar-label: string, headline: string, remaining: int, done: int, tasks: [Item], error: string }
+struct Data { bar-label: string, remaining: int, done: int, tasks: [Item], error: string }
 
 component IconButton inherits Rectangle {
     in property <image> source;
@@ -21,6 +21,10 @@ component IconButton inherits Rectangle {
 component Row inherits Rectangle {
     in property <string> text;
     in property <bool> done;
+    in property <bool> shown: true;
+    // A task typed but not yet written back by the provider: shown at once,
+    // without controls that would act on an identifier it has not got.
+    in property <bool> ghost: false;
     in property <color> bg;
     in property <color> fg;
     in property <color> muted;
@@ -29,14 +33,16 @@ component Row inherits Rectangle {
     in property <color> overlay;
     callback toggled();
     callback deleted();
-    height: 36px; border-radius: 6px;
-    background: hover.has-hover ? root.surface.with-alpha(0.55) : transparent;
+    height: shown ? 36px : 0px; visible: shown; clip: true;
+    opacity: ghost ? 0.5 : 1;
+    border-radius: 6px;
+    background: hover.has-hover && !root.ghost ? root.surface.with-alpha(0.55) : transparent;
     hover := TouchArea { mouse-cursor: default; }
     HorizontalLayout {
         padding-left: 8px; padding-right: 6px; spacing: 10px;
         Rectangle {
             width: 18px;
-            box := Rectangle {
+            Rectangle {
                 width: 18px; height: 18px; border-radius: 4px;
                 border-width: root.done ? 0px : 2px;
                 border-color: check-touch.has-hover ? root.accent : root.muted;
@@ -46,7 +52,7 @@ component Row inherits Rectangle {
                     colorize: root.bg; visible: root.done;
                 }
             }
-            check-touch := TouchArea { clicked => { root.toggled(); } }
+            check-touch := TouchArea { enabled: !root.ghost; clicked => { root.toggled(); } }
         }
         Rectangle {
             horizontal-stretch: 1;
@@ -65,7 +71,7 @@ component Row inherits Rectangle {
         }
         IconButton {
             width: 26px; source: @image-url("trash.svg"); size: 15px;
-            tint: root.overlay; hover-tint: root.accent;
+            tint: root.overlay; hover-tint: root.accent; enabled: !root.ghost;
             clicked => { root.deleted(); }
         }
     }
@@ -88,26 +94,88 @@ export component View inherits Window {
     in property <bool> open: false;
     in property <string> provider-error;
     callback action(string, string);
+    callback completed();
     callback dismissed();
 
     property <string> draft: "";
-    // The store only changes from this popup, so opening it is the one moment
-    // the list can be stale.
-    changed open => {
-        if (open) {
-            if (!busy) { root.action("refresh", ""); }
-            draft-input.focus();
-        }
-    }
-    dismissed => { root.draft = ""; draft-input.text = ""; }
 
+    // Every action starts a PowerShell run of its own, so the list answers the
+    // click first and the provider afterwards. The overlay below holds one
+    // intent per kind, and the provider's answer replaces all of it.
+    // in-out so tests/preview.py can render an in-flight state; Winarchy only
+    // ever writes `data`.
+    in-out property <string> pending-toggle: "";
+    in-out property <string> pending-delete: "";
+    in-out property <string> pending-add: "";
+    in-out property <bool> pending-clear: false;
+    in-out property <int> remaining-delta: 0;
+    in-out property <int> done-delta: 0;
+    // Actions the provider still owes an answer for: the overlay goes away
+    // when none is left, never while a queued action is still on its way.
+    property <int> outstanding: 0;
+
+    property <int> shown-remaining: max(0, root.data.remaining + root.remaining-delta);
+    property <int> shown-done: max(0, root.data.done + root.done-delta);
+
+    pure function done-now(task: Item) -> bool {
+        return root.pending-toggle == task.id ? !task.done : task.done;
+    }
+    pure function listed(task: Item) -> bool {
+        if (root.pending-delete == task.id) { return false; }
+        if (root.pending-clear && root.done-now(task)) { return false; }
+        return true;
+    }
+    function send(verb: string, argument: string) {
+        root.outstanding += 1;
+        root.action(verb, argument);
+    }
     function add() {
-        if (root.draft == "" || root.busy) { return; }
-        root.action("add", root.draft);
+        if (root.draft == "") { return; }
+        root.pending-add = root.draft;
+        root.remaining-delta += 1;
+        root.send("add", root.draft);
         root.draft = "";
         draft-input.text = "";
         draft-input.focus();
     }
+    function toggle(task: Item) {
+        if (root.done-now(task)) { root.remaining-delta += 1; root.done-delta -= 1; }
+        else { root.remaining-delta -= 1; root.done-delta += 1; }
+        // Ticking the same task twice returns it to the state the data holds.
+        root.pending-toggle = root.pending-toggle == task.id ? "" : task.id;
+        root.send("toggle", task.id);
+    }
+    function remove(task: Item) {
+        if (root.done-now(task)) { root.done-delta -= 1; } else { root.remaining-delta -= 1; }
+        root.pending-delete = task.id;
+        root.send("delete", task.id);
+    }
+    function clear-completed() {
+        root.done-delta = -root.data.done;
+        root.pending-clear = true;
+        root.send("clear-completed", "");
+    }
+
+    // The store only changes from this popup, so opening it is the one moment
+    // the list can be stale.
+    changed open => {
+        if (open) {
+            if (!busy) { root.send("refresh", ""); }
+            draft-input.focus();
+        }
+    }
+    completed => {
+        root.outstanding = max(0, root.outstanding - 1);
+        if (root.outstanding == 0) {
+            root.pending-toggle = "";
+            root.pending-delete = "";
+            root.pending-add = "";
+            root.pending-clear = false;
+            root.remaining-delta = 0;
+            root.done-delta = 0;
+        }
+    }
+    dismissed => { root.draft = ""; draft-input.text = ""; }
 
     background: bg;
     Rectangle {
@@ -120,7 +188,12 @@ export component View inherits Window {
                 VerticalLayout {
                     horizontal-stretch: 1; spacing: 2px;
                     Text { text: "Todo"; color: root.fg; font-size: 16px; font-weight: 600; }
-                    Text { text: root.data.headline; color: root.muted; font-size: 11px; }
+                    Text {
+                        text: root.shown-remaining + root.shown-done == 0 ? "nothing planned"
+                            : root.shown-remaining == 0 ? "all done"
+                            : "\{root.shown-remaining} remaining";
+                        color: root.muted; font-size: 11px;
+                    }
                 }
             }
             HorizontalLayout {
@@ -145,7 +218,7 @@ export component View inherits Window {
                 IconButton {
                     width: 34px; source: @image-url("plus.svg"); size: 18px;
                     tint: root.draft == "" ? root.overlay : root.accent; hover-tint: root.accent;
-                    enabled: root.draft != "" && !root.busy;
+                    enabled: root.draft != "";
                     clicked => { root.add(); }
                 }
             }
@@ -156,12 +229,16 @@ export component View inherits Window {
                 list := VerticalLayout {
                     alignment: start; spacing: 2px;
                     for task in root.data.tasks: Row {
-                        text: task.text; done: task.done;
+                        text: task.text; done: root.done-now(task); shown: root.listed(task);
                         bg: root.bg; fg: root.fg; muted: root.muted; accent: root.accent; surface: root.surface; overlay: root.overlay;
-                        toggled => { if (!root.busy) { root.action("toggle", task.id); } }
-                        deleted => { if (!root.busy) { root.action("delete", task.id); } }
+                        toggled => { root.toggle(task); }
+                        deleted => { root.remove(task); }
                     }
-                    if root.data.tasks.length == 0: Text {
+                    if root.pending-add != "": Row {
+                        text: root.pending-add; ghost: true;
+                        bg: root.bg; fg: root.fg; muted: root.muted; accent: root.accent; surface: root.surface; overlay: root.overlay;
+                    }
+                    if root.data.tasks.length == 0 && root.pending-add == "": Text {
                         text: "Nothing planned.\nType above to add your first task.";
                         color: root.muted; font-size: 12px; wrap: word-wrap;
                     }
@@ -177,13 +254,13 @@ export component View inherits Window {
                     text: "Clear completed";
                     color: clear-touch.has-hover ? root.accent : root.muted;
                     font-size: 12px; vertical-alignment: center;
-                    visible: root.data.done > 0;
-                    width: root.data.done > 0 ? self.preferred-width : 0px;
-                    clear-touch := TouchArea { clicked => { if (!root.busy) { root.action("clear-completed", ""); } } }
+                    visible: root.shown-done > 0;
+                    width: root.shown-done > 0 ? self.preferred-width : 0px;
+                    clear-touch := TouchArea { clicked => { root.clear-completed(); } }
                 }
                 Rectangle { horizontal-stretch: 1; }
                 Text {
-                    text: root.data.done > 0 ? "\{root.data.done} done" : "";
+                    text: root.shown-done > 0 ? "\{root.shown-done} done" : "";
                     color: root.muted; font-size: 11px; vertical-alignment: center;
                 }
             }

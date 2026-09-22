@@ -24,6 +24,8 @@ Every task carries an identifier the provider assigns. An action naming an unkno
 
 Nothing but this popup writes the list, so the provider runs when you open it, on each action, and every 10 minutes otherwise.
 
+Each action starts a PowerShell process, which takes a few hundred milliseconds, so the list answers the click first and the provider afterwards: a ticked task crosses out at once, a deleted one leaves, a typed one appears greyed until it comes back with an identifier. The view counts the actions it is still owed an answer for and drops that overlay only once none is left, so a burst of clicks does not flicker back to the old state. Clicks during a run are queued by Winarchy, up to eight, rather than dropped.
+
 Set `[settings] store` in the installed `applet.toml` to keep the task file elsewhere, a synchronised folder for instance.
 
 ## Install from WSL
@@ -47,4 +49,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File todo/tests/provider.ps1
 xvfb-run -a python3 todo/tests/preview.py /tmp/todo-preview   # optional, renders the view
 ```
 
-The provider fixtures cover action parsing, the list mutations, the store round-trip (Unicode, no BOM, no leftover temporary file, a corrupt file left alone, identifiers never reused) and a whole-script run started the way Winarchy starts it.
+The preview renders six fixtures, one of them mid-flight with a ticked, a deleted and a typed task, since the optimistic state is otherwise only visible on the desktop. The provider fixtures cover action parsing, the list mutations, the store round-trip (Unicode, no BOM, no leftover temporary file, a corrupt file left alone, identifiers never reused) and a whole-script run started the way Winarchy starts it.

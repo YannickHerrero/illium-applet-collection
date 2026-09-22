@@ -35,20 +35,19 @@ Assert-Throws { Invoke-Action $store 'wipe' '' } 'unknown verb'
 
 $data = Build-Data $store ''
 Assert-Equal $data.bar_label '1' 'bar label counts what remains'
-Assert-Equal $data.headline '1 remaining' 'headline'
 Assert-Equal $data.remaining 1 'remaining'
 Assert-Equal $data.done 1 'done'
 $json = ConvertTo-Json -InputObject $data -Depth 5 -Compress
 if ($json -notmatch '"tasks":\[\{') { throw "tasks must stay a JSON array: $json" }
-Assert-Equal (Build-Data (New-Store) '').headline 'nothing planned' 'empty headline'
+Assert-Equal (Build-Data (New-Store) '').remaining 0 'empty remaining'
 Assert-Equal (Build-Data (New-Store) '').bar_label '' 'empty bar label'
 
 Assert-Equal (Invoke-Action $store 'clear-completed' '') 'changed' 'clear completed'
 Assert-Equal $store.tasks.Count 1 'clear leaves what remains'
 Assert-Equal (Invoke-Action $store 'clear-completed' '') '' 'clear is idempotent'
-Assert-Equal (Build-Data $store '').headline '1 remaining' 'headline after clear'
+Assert-Equal (Build-Data $store '').remaining 1 'remaining after clear'
 Assert-Equal (Invoke-Action $store 'toggle' '1') 'changed' 'toggle the last one'
-Assert-Equal (Build-Data $store '').headline 'all done' 'all done headline'
+Assert-Equal (Build-Data $store '').remaining 0 'nothing left open'
 
 $root = Join-Path ([IO.Path]::GetTempPath()) ("winarchy-todo-tests-" + [Guid]::NewGuid().ToString('N'))
 try {
@@ -100,15 +99,15 @@ try {
         if ($child.ExitCode -ne 0) { throw "provider exited with $($child.ExitCode)" }
         return $output
     }
-    Assert-Equal (& $run '' | ConvertFrom-Json).headline 'nothing planned' 'live empty'
-    Assert-Equal (& $run '["add","Hello from Omado"]' | ConvertFrom-Json).headline '1 remaining' 'live add'
+    Assert-Equal (& $run '' | ConvertFrom-Json).tasks.Count 0 'live empty'
+    Assert-Equal (& $run '["add","Hello from Omado"]' | ConvertFrom-Json).remaining 1 'live add'
     $second = & $run '["add","Complete Creational patterns"]' | ConvertFrom-Json
     Assert-Equal $second.tasks.Count 2 'live second add'
-    Assert-Equal (& $run '["toggle","2"]' | ConvertFrom-Json).headline '1 remaining' 'live toggle'
-    Assert-Equal (& $run '["delete","1"]' | ConvertFrom-Json).headline 'all done' 'live delete'
+    Assert-Equal (& $run '["toggle","2"]' | ConvertFrom-Json).remaining 1 'live toggle'
+    Assert-Equal (& $run '["delete","1"]' | ConvertFrom-Json).remaining 0 'live delete'
     $cleared = & $run '["clear-completed"]' | ConvertFrom-Json
     Assert-Equal $cleared.tasks.Count 0 'live clear'
-    Assert-Equal $cleared.headline 'nothing planned' 'live headline after clear'
+    Assert-Equal $cleared.remaining 0 'live count after clear'
     Assert-Equal $cleared.error '' 'live run without error'
 } finally {
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue

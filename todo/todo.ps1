@@ -90,10 +90,10 @@ function Build-Data($store, [string]$failure) {
     $tasks = @($store.tasks)
     $remaining = @($tasks | Where-Object { -not $_.done }).Count
     $done = $tasks.Count - $remaining
-    $headline = if ($tasks.Count -eq 0) { 'nothing planned' } elseif ($remaining -eq 0) { 'all done' } else { "$remaining remaining" }
+    # The view words the count itself, so an optimistic list is not contradicted
+    # by a sentence written before the click.
     return [ordered]@{
         bar_label = $(if ($remaining -gt 0) { [string]$remaining } else { '' })
-        headline = $headline
         remaining = $remaining
         done = $done
         tasks = [object[]]$tasks

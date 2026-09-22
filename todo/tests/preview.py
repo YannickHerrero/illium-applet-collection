@@ -22,10 +22,8 @@ def task(identifier, text, done=False):
 def payload(tasks, error=''):
     remaining = sum(1 for t in tasks if not t['done'])
     done = len(tasks) - remaining
-    headline = 'nothing planned' if not tasks else 'all done' if not remaining else f'{remaining} remaining'
     return {
         'bar-label': str(remaining) if remaining else '',
-        'headline': headline,
         'remaining': remaining,
         'done': done,
         'tasks': tasks,
@@ -46,6 +44,15 @@ for name, values in [
     ('empty', {'data': payload([])}),
     ('long', {'data': payload(long_list)}),
     ('error', {'data': payload(mixed, 'Task file unreadable: C:\\Users\\Someone\\tasks.json')}),
+    # An in-flight state: one task typed, one just ticked, one just deleted.
+    ('optimistic', {
+        'data': payload(mixed),
+        'pending-add': 'Réserver la salle',
+        'pending-toggle': '1',
+        'pending-delete': '3',
+        'remaining-delta': 0,
+        'done-delta': 0,
+    }),
 ]:
     with tempfile.TemporaryDirectory() as directory:
         fixture = Path(directory) / 'data.json'
@@ -69,4 +76,4 @@ for name, values in [
             errors.seek(0)
             text = errors.read()
             assert not text.strip(), text
-print('Five Slint fixtures compiled and rendered:', output)
+print('Six Slint fixtures compiled and rendered:', output)
