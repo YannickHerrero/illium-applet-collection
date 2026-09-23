@@ -21,6 +21,31 @@ States map onto each source's own words. Herdr: `blocked` is **needs you**, `don
 
 Cards are ordered needs you, working, done, ready. The list refreshes every 15 seconds while closed and every 3 seconds while open.
 
+## Pet state events
+
+The provider also emits `pet_state`: `idle`, `working`, `waiting`, `success`, or
+`error`. Waiting takes precedence over every reaction. Observed working/waiting
+agents that transition to done produce a five-second success reaction; explicit
+Multica failures produce an eight-second error reaction. Otherwise the pet works
+while any agent works, or rests. Simultaneous failures take precedence over
+successes. Polling means a transient reaction expires on the next collected
+snapshot after its deadline.
+
+Herdr identity is its session and pane ID; Multica identity is server, workspace
+and task ID. The first snapshot is a baseline, not a burst of celebrations.
+Disappearing agents and unreachable sources do not imply success or failure.
+A polling gap over 30 seconds resets the baseline. Very short tasks that begin
+and end between polls can be missed. Multica `completed` means the task ended,
+not necessarily that the agent's broader goal succeeded; pending questions
+cannot be inferred from that status.
+
+Only hashed identities, statuses and timestamps are atomically persisted, with
+mode 0600, in `~/.local/state/winarchy-applet-collection/agent-orchestrator/pet.json`.
+No prompts, transcripts, titles, credentials or project paths are cached.
+An unreadable/corrupt cache resets the baseline; an unwritable cache disables
+transient reactions without breaking the list. Terminal Multica results drive
+reactions but remain excluded from popup cards. No agent hooks are installed.
+
 ## How it works
 
 ```text

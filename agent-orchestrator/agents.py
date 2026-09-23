@@ -10,11 +10,13 @@ shell; every path used here is derived from $HOME.
 """
 import datetime
 import glob
+import hashlib
 import json
 import os
 import re
 import socket
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 
@@ -138,7 +140,7 @@ def herdr_snapshot(path):
         return None
 
 
-def herdr_cards(home):
+def herdr_cards(home, observations=None):
     """Cards for every agent pane of every running herdr server, plus the source line."""
     sockets = herdr_sockets(home)
     if not sockets:
@@ -160,6 +162,8 @@ def herdr_cards(home):
             cwd = short_path(str(agent.get('foreground_cwd') or agent.get('cwd') or ''), home)
             title = clean(agent.get('terminal_title_stripped') or agent.get('terminal_title') or '')
             status = HERDR_STATUS.get(str(agent.get('agent_status') or ''), 'idle')
+            if observations is not None and agent.get('pane_id'):
+                observe(observations, ['herdr', session, agent['pane_id']], status)
             cards.append(card('herdr', agent_name(agent.get('agent')), title or os.path.basename(cwd) or 'Agent',
                               cwd, status, label))
     if answered == 0:
@@ -193,7 +197,7 @@ class Multica:
             return json.loads(response.read(RESPONSE_BYTE_CAP).decode('utf-8'))
 
 
-def multica_cards(home, reference):
+def multica_cards(home, reference, observations=None):
     try:
         client = Multica(home)
     except (OSError, ValueError):
@@ -207,8 +211,16 @@ def multica_cards(home, reference):
         return [], {'name': 'Multica', 'state': 'error', 'detail': 'unexpected answer'}
     names = {a.get('id'): clean(a.get('name'), 40) for a in agents if isinstance(a, dict)}
 
-    # Only agents actually working are wanted here; the snapshot also carries
-    # queued tasks and each agent's last outcome, which stay out of the popup.
+    # Outcomes drive the pet without adding historical tasks to the popup.
+    if observations is not None:
+        for task in tasks:
+            if not isinstance(task, dict) or not task.get('id'):
+                continue
+            status = {'running': 'working', 'completed': 'done', 'failed': 'error'}.get(task.get('status'))
+            if status:
+                observe(observations, ['multica', client.server, client.workspace, task['id']], status)
+
+    # Only agents actually working are wanted here; historical tasks stay out of the popup.
     running = [t for t in tasks if isinstance(t, dict) and t.get('status') == 'running']
 
     issues = {}
@@ -275,11 +287,79 @@ def dumps(payload):
     return text
 
 
+def observe(observations, identity, status):
+    # Persist only opaque IDs and statuses, never titles, paths, prompts or tokens.
+    key = hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
+    if len(observations) < 2000:
+        observations[key] = status
+
+
+def pet_transition(observations, summary, previous, timestamp):
+    """An observed terminal transition, not a disappearing card, triggers a reaction."""
+    base = 'waiting' if summary['waiting'] else 'working' if summary['working'] else 'idle'
+    prior = previous.get('agents', {})
+    recent = 0 <= timestamp - previous.get('updated_at', 0) <= 30
+    # A restart after a long gap establishes a baseline; no historical celebrations.
+    prior = prior if recent else {}
+    outcomes = {status for key, status in observations.items()
+                if prior.get(key) in ('working', 'waiting') and status in ('done', 'error')}
+    reaction = previous.get('reaction', '') if recent else ''
+    until = previous.get('until', 0) if recent else 0
+    if until <= timestamp:
+        reaction, until = '', 0
+    if 'error' in outcomes:
+        reaction, until = 'error', timestamp + 8
+    elif 'done' in outcomes and reaction != 'error':
+        reaction, until = 'success', timestamp + 5
+    # Never hide a pending question or replay its suppressed celebration later.
+    if base == 'waiting':
+        reaction, until = '', 0
+    state = reaction or base
+    return state, {'version': 1, 'updated_at': timestamp, 'agents': observations,
+                   'reaction': reaction, 'until': until}
+
+
+def pet_state(home, observations, summary, reference):
+    path = os.path.join(home, '.local/state/winarchy-applet-collection/agent-orchestrator/pet.json')
+    previous = {}
+    try:
+        with open(path, encoding='utf-8') as handle:
+            raw = handle.read(256 * 1024 + 1)
+        saved = json.loads(raw) if len(raw) <= 256 * 1024 else None
+        if (isinstance(saved, dict) and saved.get('version') == 1
+                and isinstance(saved.get('agents'), dict)
+                and all(isinstance(k, str) and isinstance(v, str) for k, v in saved['agents'].items())
+                and type(saved.get('updated_at')) in (int, float)
+                and type(saved.get('until')) in (int, float)
+                and saved.get('reaction') in ('', 'success', 'error')):
+            previous = saved
+    except (OSError, ValueError):
+        pass
+    state, snapshot = pet_transition(observations, summary, previous, reference.timestamp())
+    temporary = None
+    try:
+        os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=os.path.dirname(path), delete=False) as handle:
+            temporary = handle.name
+            json.dump(snapshot, handle)
+        os.replace(temporary, path)
+    except OSError:
+        # Cache failures must not break the agent list or leave a stuck celebration.
+        state = 'waiting' if summary['waiting'] else 'working' if summary['working'] else 'idle'
+    finally:
+        if temporary and os.path.exists(temporary):
+            os.unlink(temporary)
+    return state
+
+
 def collect(home, reference=None):
     reference = reference or now()
-    herdr, herdr_source = herdr_cards(home)
-    multica, multica_source = multica_cards(home, reference)
-    return assemble(herdr + multica, [herdr_source, multica_source])
+    observations = {}
+    herdr, herdr_source = herdr_cards(home, observations)
+    multica, multica_source = multica_cards(home, reference, observations)
+    payload = assemble(herdr + multica, [herdr_source, multica_source])
+    payload['pet_state'] = pet_state(home, observations, payload['summary'], reference)
+    return payload
 
 
 def main():
@@ -287,7 +367,7 @@ def main():
     try:
         payload = collect(home)
     except Exception as error:  # a broken poll must still leave a readable popup
-        payload = {'ok': False, 'error': f'{type(error).__name__}: {error}', 'bar_label': '', 'icon': 'icon.svg',
+        payload = {'ok': False, 'error': f'{type(error).__name__}: {error}', 'bar_label': '', 'icon': 'icon.svg', 'pet_state': 'idle',
                    'summary': {'total': 0, 'waiting': 0, 'working': 0, 'done': 0, 'idle': 0, 'headline': ''},
                    'sources': [], 'cards': []}
     sys.stdout.write(dumps(payload) + '\n')

@@ -177,6 +177,27 @@ class AgentsTests(unittest.TestCase):
         self.assertNotIn(TOKEN, text)
         self.assertNotIn('mention://', text)
 
+    def test_herdr_pet_reacts_once_to_a_real_pane_transition(self):
+        server = self.start_herdr({'workspaces': [], 'agents': [herdr_agent('w:p', 'Build', 'working', 'w')]})
+        self.assertEqual(self.collect()['pet_state'], 'working')
+        server.snapshot['agents'][0]['agent_status'] = 'done'
+        data = agents.collect(str(self.home), NOW + datetime.timedelta(seconds=3))
+        self.assertEqual(data['pet_state'], 'success')
+        data = agents.collect(str(self.home), NOW + datetime.timedelta(seconds=9))
+        self.assertEqual(data['pet_state'], 'idle')
+
+    def test_multica_outcomes_drive_pet_without_historical_cards(self):
+        self.start_multica([{'id': 'task', 'status': 'running'}], [])
+        self.assertEqual(self.collect()['pet_state'], 'working')
+        FakeMultica.routes['/api/agent-task-snapshot'][0]['status'] = 'failed'
+        data = agents.collect(str(self.home), NOW + datetime.timedelta(seconds=3))
+        self.assertEqual((data['pet_state'], data['cards']), ('error', []))
+        FakeMultica.routes['/api/agent-task-snapshot'] = [{'id': 'new', 'status': 'running'}]
+        agents.collect(str(self.home), NOW + datetime.timedelta(seconds=12))
+        FakeMultica.routes['/api/agent-task-snapshot'][0]['status'] = 'completed'
+        data = agents.collect(str(self.home), NOW + datetime.timedelta(seconds=15))
+        self.assertEqual((data['pet_state'], data['cards']), ('success', []))
+
     def test_no_source_is_reported_without_failing(self):
         data = self.collect()
         self.assertEqual((data['ok'], data['bar_label'], data['icon'], data['cards']), (True, '', 'icon.svg', []))
