@@ -1,4 +1,5 @@
 import importlib.util
+import struct
 from pathlib import Path
 import tempfile
 import tomllib
@@ -37,6 +38,16 @@ class InstallTests(unittest.TestCase):
         manifest = tomllib.loads((applet / 'applet.toml').read_text())
         self.assertEqual(manifest['command'], ['wsl.exe', '-d', 'Debian', '--', 'python3', str(script)])
         self.assertEqual((manifest['label'], manifest['icon']), ('{bar_label}', '{icon}'))
+        self.assertEqual((manifest['sprite'], manifest['interval']), ('glitchcat.toml', '3s'))
+        pack = tomllib.loads((applet / manifest['sprite']).read_text())
+        png = (applet / pack['sheet']).read_bytes()
+        self.assertEqual(png[:8], b'\x89PNG\r\n\x1a\n')
+        self.assertEqual(struct.unpack('>II', png[16:24]),
+                         (pack['frame_width'] * pack['columns'], pack['frame_height'] * pack['rows']))
+        self.assertEqual(set(pack['states']), {'idle', 'working', 'waiting', 'success', 'error'})
+        for animation in pack['states'].values():
+            self.assertTrue(0 <= animation['row'] < pack['rows'])
+            self.assertTrue(1 <= animation['frames'] <= pack['columns'])
         self.assertEqual(list(self.config.parent.glob('.agent-orchestrator-install-*')), [])
 
     def test_refuses_an_existing_installation_or_bad_distribution(self):

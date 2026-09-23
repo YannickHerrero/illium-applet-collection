@@ -1,0 +1,17 @@
+# Glitchcat atlas from OmaPets / Petdex; see ATTRIBUTION.md.
+# Each pack owns its geometry and state mapping; no Glitchcat rules in Winarchy.
+sheet = "glitchcat.png"
+frame_width = 192
+frame_height = 208
+columns = 8
+rows = 9
+interval_ms = 140
+display_height = 28
+state = "{pet_state}"
+
+[states]
+idle = { row = 0, frames = 6 }
+working = { row = 7, frames = 6 }
+waiting = { row = 6, frames = 6 }
+success = { row = 8, frames = 6 }
+error = { row = 5, frames = 8 }

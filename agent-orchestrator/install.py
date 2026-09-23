@@ -12,7 +12,8 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parent
 NAME = 'agent-orchestrator'
-FILES = ('view.slint', 'icon.svg', 'icon-active.svg', 'icon-attention.svg', 'README.md')
+FILES = ('view.slint', 'icon.svg', 'icon-active.svg', 'icon-attention.svg', 'README.md',
+         'glitchcat.toml', 'glitchcat.png', 'ATTRIBUTION.md', 'OMAPETS-LICENSE')
 SCRIPT = 'agents.py'
 
 
