@@ -48,6 +48,20 @@ class InstallTests(unittest.TestCase):
         self.assertEqual((target / 'notes.txt').read_text(), 'personal note')
         self.assertEqual((target / 'lib.ps1').read_bytes(), (ROOT / 'lib.ps1').read_bytes())
 
+    def test_update_preserves_manifest_settings(self):
+        target = Path(self.install()['applet'])
+        manifest = b'# Personal settings\nattach = "clock"\nscript = "agenda.ps1"\ninterval = "10m"\npopup = { width = 440, height = 700 }\n'
+        (target / 'applet.toml').write_bytes(manifest)
+        (target / 'view.slint').write_text('old view')
+        bar = (self.config / 'bar.toml').read_bytes()
+        result = self.install()
+        self.assertFalse(result['unchanged'])
+        self.assertEqual((target / 'applet.toml').read_bytes(), manifest)
+        self.assertEqual((Path(result['backup']) / 'calendar-agenda/applet.toml').read_bytes(), manifest)
+        self.assertEqual((target / 'view.slint').read_bytes(), (ROOT / 'view.slint').read_bytes())
+        self.assertEqual((self.config / 'bar.toml').read_bytes(), bar)
+        self.assertTrue(self.install()['unchanged'])
+
     def test_existing_entry_any_section(self):
         raw = b'left = ["calendar-agenda"]\ncenter = ["clock"]\nright = []\n'
         self.assertEqual(installer.patched_bar(raw), raw)

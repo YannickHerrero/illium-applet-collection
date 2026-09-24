@@ -35,7 +35,8 @@ The installer backs up `bar.toml` and an existing applet outside the watched con
 folder, then adds `calendar-agenda` before `wifi` in the right section (or at its end).
 An existing reference in any section stays where it is. Repeating an unchanged
 installation does nothing. Updates replace managed applet files, preserve extra
-files, and never touch another applet. Stop editing those files during installation.
+files and the existing `applet.toml` settings (including a custom `attach = "clock"`,
+refresh interval and popup size), and never touch another applet. Stop editing those files during installation.
 A multiline `right` array requires manually adding `calendar-agenda` first.
 
 ## Use

@@ -61,8 +61,14 @@ def install(config_home, local_home):
         raise ValueError('Refusing to overwrite an applet containing symlinks')
     original = bar.read_bytes()
     updated = patched_bar(original)
+    # The manifest contains user settings (clock attachment, size, interval).
+    # Supply defaults on first install, but never reset an existing manifest.
+    contents = {name: (ROOT / name).read_bytes() for name in FILES}
+    manifest = target / 'applet.toml'
+    if manifest.is_file():
+        contents['applet.toml'] = manifest.read_bytes()
     if target.is_dir() and original == updated and all(
-            (target / f).is_file() and (target / f).read_bytes() == (ROOT / f).read_bytes() for f in FILES):
+            (target / f).is_file() and (target / f).read_bytes() == contents[f] for f in FILES):
         return {'applet': str(target), 'unchanged': True}
     backup_root = Path(local_home) / '.local/state/winarchy-applet-collection/backups'
     backup_root.mkdir(parents=True, exist_ok=True)
@@ -86,7 +92,7 @@ def install(config_home, local_home):
         for name in FILES:
             destination = stage / name
             destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(ROOT / name, destination)
+            destination.write_bytes(contents[name])
         if bar.read_bytes() != original or target.exists() != existed:
             raise ValueError('Configuration changed concurrently; installation cancelled')
         target.parent.mkdir(parents=True, exist_ok=True)
