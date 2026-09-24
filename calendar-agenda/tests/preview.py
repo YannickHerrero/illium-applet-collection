@@ -150,8 +150,31 @@ for name, values in fixtures:
             config.write_text('<?xml version="1.0"?><!DOCTYPE fontconfig SYSTEM "fonts.dtd"><fontconfig>'
                               '<include>/etc/fonts/fonts.conf</include><dir>' + escape(os.environ['CALENDAR_AGENDA_FONT_DIR']) + '</dir></fontconfig>')
             env['FONTCONFIG_FILE'] = str(config)
+        view = ROOT / 'view.slint'
+        if name == 'opened':
+            # Simulate same-month provider replies and reopening the retained view.
+            view = Path(temp) / 'reopen.slint'
+            source = (ROOT / 'view.slint').read_text().replace('@image-url("', '@image-url("' + str(ROOT) + '/')
+            source = source.replace('in property <Data> data;', 'in-out property <Data> data;').replace('in property <bool> open;', 'in-out property <bool> open;')
+            view.write_text(source[:source.rfind('}')] + '''
+    private property <int> step: 0;
+    Timer {
+        interval: 1200ms;
+        running: root.step < 6;
+        triggered => {
+            root.step += 1;
+            if root.step == 1 { root.data.day-index = 13; }
+            if root.step == 2 { root.dismissed(); root.open = false; }
+            if root.step == 3 { root.data.day-index = 11; }
+            if root.step == 4 { root.open = true; }
+            if root.step == 5 { root.data.day-index = 13; }
+            if root.step == 6 { root.dismissed(); }
+        }
+    }
+}
+''')
         with (Path(temp) / 'errors').open('w+') as errors:
-            process = subprocess.Popen(['slint-viewer', '--backend', 'winit-software', '--load-data', str(fixture), '--on', 'action', f'python3 {recorder} {action_log} "$1"', str(ROOT / 'view.slint')], stdout=subprocess.DEVNULL, stderr=errors, env=env)
+            process = subprocess.Popen(['slint-viewer', '--backend', 'winit-software', '--load-data', str(fixture), '--on', 'action', f'python3 {recorder} {action_log} "$1"', str(view)], stdout=subprocess.DEVNULL, stderr=errors, env=env)
             try:
                 for _ in range(30):
                     time.sleep(0.3)
@@ -171,7 +194,10 @@ for name, values in fixtures:
                 image = ImageGrab.grab().crop((xpos, ypos, xpos + width, ypos + height))
                 image.save(output / (name + '.png'))
                 if name == 'opened':
-                    assert action_log.read_text().splitlines() == [''], 'Opening refreshes only once'
+                    time.sleep(7.5)
+                    assert action_log.read_text().splitlines() == [
+                        'today', 'day 2026-09-12', 'today', 'day 2026-09-12'
+                    ], action_log.read_text()
                 if name in ('dark', 'light', 'akane', 'akane-125', 'scale-150'):
                     # Nine cards fit without scrolling. Numeric locations must not be
                     # clipped by fractional text metrics at 125% Windows scaling.

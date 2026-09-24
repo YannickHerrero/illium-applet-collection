@@ -51,18 +51,31 @@ export component View inherits Window {
     private property <int> selected-index: root.data.day-index;
     private property <string> loaded-month: "";
     private property <bool> month-pending: false;
+    private property <bool> opening-pending: false;
     private property <Day> selected: root.data.days[root.selected-index];
     changed data => {
-        if root.loaded-month != root.data.month {
-            root.selected-index = root.data.day-index;
+        if root.opening-pending || root.loaded-month != root.data.month {
+            root.selected-index = root.opening-pending && root.data.today-index >= 0 ? root.data.today-index : root.data.day-index;
             root.loaded-month = root.data.month;
             root.month-pending = false;
+            if root.data.today-index >= 0 && root.data.day-index == root.data.today-index {
+                root.opening-pending = false;
+            }
         }
     }
-    changed provider-error => { if root.provider-error != "" { root.month-pending = false; } }
-    changed open => { if root.open { root.action(""); } }
+    changed provider-error => { if root.provider-error != "" { root.month-pending = false; root.opening-pending = false; } }
+    changed open => {
+        if root.open {
+            // Cached today is immediate; the provider recomputes the local date,
+            // including after midnight or when browsing a different month.
+            if root.data.today-index >= 0 { root.selected-index = root.data.today-index; }
+            root.opening-pending = true;
+            events-scroll.viewport-y = 0px;
+            root.action("today");
+        }
+    }
     // Persist once after interaction, never on the click-to-display path.
-    dismissed => { if !root.month-pending && root.loaded-month == root.data.month && root.selected.date != "" { root.action("day " + root.selected.date); } }
+    dismissed => { if !root.opening-pending && !root.month-pending && root.loaded-month == root.data.month && root.selected.date != "" { root.action("day " + root.selected.date); } }
     pure function source-color(index: int) -> color {
         if index == 0 { return root.accent; }
         if index == 1 { return root.accent.mix(root.fg, 0.4); }
@@ -128,7 +141,7 @@ export component View inherits Window {
                             width: cell.markers.length * 5px; height: 3px; spacing: 2px;
                             for marker in cell.markers: Rectangle { width: 3px; height: 3px; border-radius: 1px; background: root.source-color(marker); }
                         }
-                        day-touch := TouchArea { mouse-cursor: pointer; clicked => { root.selected-index = week-index * 7 + cell-index; } }
+                        day-touch := TouchArea { mouse-cursor: pointer; clicked => { root.opening-pending = false; root.selected-index = week-index * 7 + cell-index; } }
                     }
                 }
             }
@@ -174,7 +187,7 @@ export component View inherits Window {
                     }
                 }
             }
-            ScrollView {
+            events-scroll := ScrollView {
                 min-height: 20px;
                 preferred-height: max(20px, event-list.preferred-height);
                 vertical-stretch: 1;

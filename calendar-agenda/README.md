@@ -49,7 +49,8 @@ A multiline `right` array requires manually adding `calendar-agenda` first.
   Only the event list scrolls; selecting a date never moves the controls.
   All 42 days are supplied in one bounded snapshot. Day selection and Today within
   the grid are immediate local interactions, even while a source is refreshing.
-  The selected day is persisted when the popup closes.
+  Every opening selects today's local date and returns the event list to the top,
+  regardless of the previously browsed day or month. Calendar filters are preserved.
   The grid is Sunday-first, with ISO week labels
   (the week containing each row's Thursday) and up to three source-colored event dots
   per day. Previous/next month sit **below** the grid; Today is beside the day's count.
@@ -77,8 +78,9 @@ Healthy sources have no persistent status footer. Failures, stale data and limit
 results produce a compact warning below the header. Any `Read locally` time in a
 warning is when we read Outlook, **not proof that Outlook synchronized with Exchange**.
 A failed source retains its matching cached range; other sources remain usable. Navigation to an uncached range never displays
-an old month's events as if they belonged to the new month. Selection stays on the
-chosen date until you choose another day/Today, including across midnight.
+an old month's events as if they belonged to the new month. While the popup stays open, selection stays on the
+chosen date until you choose another day/Today, including across midnight and refreshes.
+Closing and reopening returns to today's local date.
 
 ## Connections and private state
 
