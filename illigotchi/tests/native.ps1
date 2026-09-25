@@ -1,7 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$Provider)
 $ErrorActionPreference = 'Stop'
 $Provider = (Resolve-Path $Provider).Path
-$directory = Join-Path ([IO.Path]::GetTempPath()) ('winagotchi-test-' + [guid]::NewGuid().ToString('N'))
+$directory = Join-Path ([IO.Path]::GetTempPath()) ('illigotchi-test-' + [guid]::NewGuid().ToString('N'))
 $previous = $env:ILLIUM_APPLET_STATE_DIR
 $previousWorkDay = $env:ILLIUM_APPLET_WORK_DAY
 $env:ILLIUM_APPLET_WORK_DAY = $null
