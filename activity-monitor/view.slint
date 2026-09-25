@@ -116,7 +116,7 @@ export component View inherits Window {
         root.working = false;
         if (root.open && root.pending-refresh) { root.refresh(); }
     }
-    // Winarchy invokes completed BEFORE assigning new data.
+    // Illium invokes completed BEFORE assigning new data.
     changed data => {
         if (root.selection != "" && root.selection == root.data.selected-key) {
             root.cursor = root.data.selected-index;

@@ -26,7 +26,7 @@ cards = [
     card('herdr', 'Pi', 'Rewrite the receipt formatter', '~/dev/checkout-service', 'working', 'checkout-service'),
     card('multica', 'Minnie', 'DEV-101  Review the expert accountant role', 'direct  ·  started 12 min', 'working'),
     card('herdr', 'Claude', 'Upgrade the search index', '~/dev/docs-site', 'done', 'docs-site'),
-    card('herdr', 'Codex', 'Token names for the new palette', '~/dev/winarchy', 'idle', 'winarchy'),
+    card('herdr', 'Codex', 'Token names for the new palette', '~/dev/illium', 'idle', 'illium'),
     card('herdr', 'Claude', 'Fix the broken anchor links', '~/dev/docs-site', 'idle', 'docs-site'),
 ]
 summary = {'total': 7, 'waiting': 1, 'working': 3, 'done': 1, 'idle': 2, 'headline': '1 agent needs you'}

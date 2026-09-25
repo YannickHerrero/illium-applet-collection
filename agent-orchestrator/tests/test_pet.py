@@ -63,7 +63,7 @@ class PetTests(unittest.TestCase):
             observations = {}
             agents.observe(observations, ['herdr', 'private-session', 'private-pane'], 'working')
             self.assertEqual(agents.pet_state(home, observations, summary, reference), 'working')
-            path = Path(home) / '.local/state/winarchy-applet-collection/agent-orchestrator/pet.json'
+            path = Path(home) / '.local/state/illium-applet-collection/agent-orchestrator/pet.json'
             text = path.read_text()
             self.assertNotIn('private', text)
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)

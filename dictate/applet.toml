@@ -4,5 +4,5 @@ interval = "30s"
 popup = { width = 340, height = 210 }
 
 [settings]
-# Absolute path of winarchy-dictate.exe; empty means %LOCALAPPDATA%\Programs\Winarchy.
+# Absolute path of illium-dictate.exe; empty means %LOCALAPPDATA%\Programs\Illium.
 executable = ""

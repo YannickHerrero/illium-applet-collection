@@ -1,8 +1,8 @@
-# Agent Orchestrator for Winarchy
+# Agent Orchestrator for Illium
 
-A read-only Winarchy applet listing every coding agent visible from WSL in one place: the agents running in [herdr](https://herdr.dev) panes and the [Multica](https://multica.ai) agents currently working on a task. The bar tells you how many need an answer or are working; the popup lets you filter by state. Nothing in the popup focuses, cancels or kills anything.
+A read-only Illium applet listing every coding agent visible from WSL in one place: the agents running in [herdr](https://herdr.dev) panes and the [Multica](https://multica.ai) agents currently working on a task. The bar tells you how many need an answer or are working; the popup lets you filter by state. Nothing in the popup focuses, cancels or kills anything.
 
-Inspired by [meviusisback/agent-orchestr](https://github.com/meviusisback/agent-orchestr) for Omarchy, MIT. Its status vocabulary, filter tabs and secret redaction are followed; the Hyprland window switching, process termination, transcript parsing and the OMP, Hermes, Grok and Orca sources have no Winarchy equivalent here and were left out. The static fallback icons are original drawings. The animated Glitchcat atlas and state mapping come from [OmaPets](https://github.com/yesmeck/OmaPets); see [ATTRIBUTION.md](ATTRIBUTION.md) and [OMAPETS-LICENSE](OMAPETS-LICENSE).
+Inspired by [meviusisback/agent-orchestr](https://github.com/meviusisback/agent-orchestr) for Omarchy, MIT. Its status vocabulary, filter tabs and secret redaction are followed; the Hyprland window switching, process termination, transcript parsing and the OMP, Hermes, Grok and Orca sources have no Illium equivalent here and were left out. The static fallback icons are original drawings. The animated Glitchcat atlas and state mapping come from [OmaPets](https://github.com/yesmeck/OmaPets); see [ATTRIBUTION.md](ATTRIBUTION.md) and [OMAPETS-LICENSE](OMAPETS-LICENSE).
 
 This applet is independent of the `herdr/` applet of this collection, which shows herdr workspaces; both can be installed side by side.
 
@@ -40,7 +40,7 @@ not necessarily that the agent's broader goal succeeded; pending questions
 cannot be inferred from that status.
 
 Only hashed identities, statuses and timestamps are atomically persisted, with
-mode 0600, in `~/.local/state/winarchy-applet-collection/agent-orchestrator/pet.json`.
+mode 0600, in `~/.local/state/illium-applet-collection/agent-orchestrator/pet.json`.
 No prompts, transcripts, titles, credentials or project paths are cached.
 An unreadable/corrupt cache resets the baseline; an unwritable cache disables
 transient reactions without breaking the list. Terminal Multica results drive
@@ -52,13 +52,13 @@ reactions but remain excluded from popup cards. No agent hooks are installed.
 herdr sockets (~/.config/herdr/herdr.sock, sessions/*/herdr.sock): session.snapshot
 Multica local server (~/.multica/config.json): GET /api/agent-task-snapshot, /api/agents, /api/issues/<id>
   -> agents.py (Python 3 standard library, in WSL)
-  -> wsl.exe -d <distribution> -- python3 <script>   (Winarchy provider, every poll)
-  -> Winarchy icon, label and popup
+  -> wsl.exe -d <distribution> -- python3 <script>   (Illium provider, every poll)
+  -> Illium icon, label and popup
 ```
 
 The collector talks to herdr through the same socket API as `herdr api snapshot`, and to Multica through the same REST endpoints, headers and token as the `multica` CLI. It reads `~/.multica/config.json` for the server URL, workspace id and token; the token is only sent to that server and never written or printed. One snapshot call returns the workspace's active tasks; only the running ones are kept, and at most eight issue titles are fetched per poll. One poll takes about 0.2 s inside WSL.
 
-Everything shown is plain text: control characters and spinner glyphs are stripped, Multica mention links are reduced to their label, and API keys, GitHub tokens, AWS keys and bearer tokens are redacted before display. Titles are cut at 160 characters, the list at 60 cards, and the output stays under Winarchy's 64 KiB provider limit.
+Everything shown is plain text: control characters and spinner glyphs are stripped, Multica mention links are reduced to their label, and API keys, GitHub tokens, AWS keys and bearer tokens are redacted before display. Titles are cut at 160 characters, the list at 60 cards, and the output stays under Illium's 64 KiB provider limit.
 
 A herdr server that does not answer, a stopped Multica daemon or a missing configuration turn the matching source line red or grey; the other source keeps working. A collector failure is shown in the popup instead of an empty list.
 
@@ -66,10 +66,10 @@ Requires `python3` in the WSL distribution. No herdr or Multica CLI is needed at
 
 ## Sprite packs
 
-Requires Winarchy's animated applet support (commit `01aa606` or later).
+Requires Illium's animated applet support (commit `01aa606` or later).
 `applet.toml` selects `sprite = "glitchcat.toml"`. The pack declares its PNG,
 frame dimensions, grid, cadence, display height and state-to-animation mapping.
-Winarchy knows nothing about Glitchcat specifically. Multiple packs can live
+Illium knows nothing about Glitchcat specifically. Multiple packs can live
 side by side in the applet folder: copy another pack and its PNG, then change
 that one filename to switch. Configuration hot reload applies the change.
 There is no pet picker or downloader yet.
@@ -82,19 +82,19 @@ manifest; the provider, counters and popup still work normally.
 
 ## Install from WSL
 
-Upgrade/rebuild Winarchy first. Older builds reject the `sprite` manifest key;
+Upgrade/rebuild Illium first. Older builds reject the `sprite` manifest key;
 remove that line if you need to keep using an older build with static icons.
 
 ```sh
-cd ~/dev/winarchy-applet-collection
+cd ~/dev/illium-applet-collection
 python3 -B agent-orchestrator/install.py --windows-home /mnt/c/Users/<WindowsUser>
 ```
 
-Pass `--config-home` for a Windows `WINARCHY_CONFIG_HOME` override and `--distribution` when herdr and Multica run in another distribution than the current one. The installer refuses to overwrite an existing installation, backs up `bar.toml` under `~/.local/state/winarchy-applet-collection/backups/`, copies the collector to `~/.local/share/winarchy-applets/agent-orchestrator/` in WSL, copies the applet to Windows `~/.config/winarchy/applets/agent-orchestrator/` with the distribution and absolute script path in its manifest, then appends `agent-orchestrator` to the bar's `right` array. Other bar entries and comments are preserved; a multiline array is refused instead of reformatted. Once Winarchy supports sprites, installing or switching a pack needs no further rebuild or restart.
+Pass `--config-home` for a Windows `ILLIUM_CONFIG_HOME` override and `--distribution` when herdr and Multica run in another distribution than the current one. The installer refuses to overwrite an existing installation, backs up `bar.toml` under `~/.local/state/illium-applet-collection/backups/`, copies the collector to `~/.local/share/illium-applets/agent-orchestrator/` in WSL, copies the applet to Windows `~/.config/illium/applets/agent-orchestrator/` with the distribution and absolute script path in its manifest, then appends `agent-orchestrator` to the bar's `right` array. Other bar entries and comments are preserved; a multiline array is refused instead of reformatted. Once Illium supports sprites, installing or switching a pack needs no further rebuild or restart.
 
 To remove it, delete `agent-orchestrator` from the bar, then remove the applet directory and the WSL script directory. Restore the backed-up `bar.toml` only if no other bar edits were made since.
 
-For upgrades, back up the installed applet outside Winarchy's configuration tree,
+For upgrades, back up the installed applet outside Illium's configuration tree,
 then replace `view.slint`, the three SVG files, `glitchcat.toml`, `glitchcat.png`,
 `ATTRIBUTION.md`, `OMAPETS-LICENSE`, and the WSL `agents.py` script. Keep the
 installed `applet.toml`, which carries your distribution and absolute script path;
@@ -106,7 +106,7 @@ Do not overwrite your provider command with the repository example.
 ```sh
 python3 -B -m unittest discover -s agent-orchestrator/tests -v
 xvfb-run -a python3 -B agent-orchestrator/tests/preview.py /tmp/agent-orchestrator-preview
-xvfb-run -a python3 -B agent-orchestrator/tests/preview_pet.py /tmp/pet-preview --shell-ui ../winarchy/ui/shell.slint
+xvfb-run -a python3 -B agent-orchestrator/tests/preview_pet.py /tmp/pet-preview --shell-ui ../illium/ui/shell.slint
 ```
 
-Collector tests run against a fake herdr socket and a fake Multica HTTP server in the test process; the previews require Slint viewer 1.12.1 and Pillow for development only and never run the collector. The pet preview uses the actual Winarchy bar and verifies changing frames at 1x, 1.5x and 2x scaling.
+Collector tests run against a fake herdr socket and a fake Multica HTTP server in the test process; the previews require Slint viewer 1.12.1 and Pillow for development only and never run the collector. The pet preview uses the actual Illium bar and verifies changing frames at 1x, 1.5x and 2x scaling.

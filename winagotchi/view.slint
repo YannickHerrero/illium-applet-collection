@@ -224,7 +224,7 @@ export component View inherits Window {
                     Button { text: root.washing ? "Done washing" : "Wash"; fg: root.washing ? root.accent : root.fg; fill: root.bg; line: root.overlay; enabled: root.care-available && !root.egg; clicked => { root.washing = !root.washing; root.scrub = 0; } }
                     Button { text: "Play"; fg: root.fg; fill: root.bg; line: root.overlay; enabled: root.care-available && root.child-or-older; clicked => { root.send("play"); } }
                 }
-                Text { text: root.busy || root.pending ? "Saving care…" : root.data.paused ? "Your companion is resting." : root.egg ? "Hatches after 5 active minutes. No offline aging." : root.data.sleeping ? "Rest restores energy. Care gently wakes your pet." : "Needs grow only while Winarchy is running, outside sleep."; color: root.muted; font-size: 10px; wrap: word-wrap; min-height: 25px; }
+                Text { text: root.busy || root.pending ? "Saving care…" : root.data.paused ? "Your companion is resting." : root.egg ? "Hatches after 5 active minutes. No offline aging." : root.data.sleeping ? "Rest restores energy. Care gently wakes your pet." : "Needs grow only while Illium is running, outside sleep."; color: root.muted; font-size: 10px; wrap: word-wrap; min-height: 25px; }
                 if root.data.notice != "": Rectangle {
                     min-height: 54px; background: root.surface; border-radius: 4px;
                     HorizontalLayout {

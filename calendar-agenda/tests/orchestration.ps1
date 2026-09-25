@@ -5,7 +5,7 @@ if ($env:OS -ne 'Windows_NT') { 'Skipped: Windows PowerShell is required.'; exit
 function Assert($Condition, $Message) { if (-not $Condition) { throw $Message } }
 $originalLocal = $env:LOCALAPPDATA
 $temp = Join-Path ([IO.Path]::GetTempPath()) ('agenda-fixture-' + [guid]::NewGuid().ToString('N'))
-$runtime = Join-Path $temp 'Winarchy\calendar-agenda'
+$runtime = Join-Path $temp 'Illium\calendar-agenda'
 [void][IO.Directory]::CreateDirectory($runtime)
 try {
     $env:LOCALAPPDATA = $temp

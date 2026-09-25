@@ -17,7 +17,7 @@ class InstallTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name)
-        self.config = self.home / '.config/winarchy'
+        self.config = self.home / '.config/illium'
         self.config.mkdir(parents=True)
         (self.config / 'bar.toml').write_bytes(BAR)
         calendar = self.config / 'applets/calendar'

@@ -1,11 +1,11 @@
-# Requires Winarchy animated sprite-pack support. Remove `sprite` for older builds.
+# Requires Illium animated sprite-pack support. Remove `sprite` for older builds.
 # The static icon remains a fallback when the pack cannot load.
 icon = "{icon}"
 sprite = "glitchcat.toml"
 label = "{bar_label}"
 interval = "3s"
 # The installer replaces this with the WSL distribution and the absolute WSL
-# path of the copied collector; Winarchy appends the view's action, which the
+# path of the copied collector; Illium appends the view's action, which the
 # collector ignores.
 command = ["wsl.exe", "-d", "Debian", "--", "python3", "agents.py"]
 focusable = false

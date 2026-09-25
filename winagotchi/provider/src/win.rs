@@ -23,7 +23,7 @@ impl Drop for Handle {
         }
     }
 }
-/// The manifest starts this executable directly, so its parent is Winarchy.
+/// The manifest starts this executable directly, so its parent is Illium.
 /// Creation time disambiguates PID reuse; unbiased interrupt time excludes sleep.
 pub fn clock() -> Result<(String, u64), String> {
     unsafe {

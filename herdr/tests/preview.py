@@ -35,7 +35,7 @@ cards = [
     card('Workspace 9', 'nothing saved', 'stopped', 'stopped', '', [], active=False),
 ]
 data = {'ok': True, 'error': '', 'bar-label': '!1', 'title': 'Herdr (1 server, 5 agents)', 'cards': cards}
-many = dict(data, title='Herdr (1 server, 14 agents)', cards=[card('winarchy', 'Workspace 1  ·  6 tabs', 'idle', 'ready', '14 agents',
+many = dict(data, title='Herdr (1 server, 14 agents)', cards=[card('illium', 'Workspace 1  ·  6 tabs', 'idle', 'ready', '14 agents',
             [agent(f'Long running task number {i} with a title that keeps going past the column', 'idle') for i in range(14)])])
 light = {'bg': '#eff1f5', 'surface': '#e6e9ef', 'overlay': '#ccd0da', 'fg': '#4c4f69', 'muted': '#6c6f85', 'accent': '#8839ef'}
 for name, values in [

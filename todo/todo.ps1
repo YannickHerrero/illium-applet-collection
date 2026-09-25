@@ -6,10 +6,10 @@ $script:MaxTasks = 200
 $script:MaxLength = 200
 
 function Resolve-Store {
-    if ($env:WINARCHY_APPLET_STORE) { return $env:WINARCHY_APPLET_STORE }
-    return Join-Path $env:LOCALAPPDATA 'winarchy-applet-collection\todo\tasks.json'
+    if ($env:ILLIUM_APPLET_STORE) { return $env:ILLIUM_APPLET_STORE }
+    return Join-Path $env:LOCALAPPDATA 'illium-applet-collection\todo\tasks.json'
 }
-# Winarchy sends a single-argument action as plain text and a multi-argument
+# Illium sends a single-argument action as plain text and a multi-argument
 # one as a JSON array, which keeps quotes, delimiters and Unicode intact.
 function Read-Action([string]$text) {
     if (-not $text) { return , @('refresh', '') }

@@ -49,7 +49,7 @@ Assert-Equal (Build-Data $store '').remaining 1 'remaining after clear'
 Assert-Equal (Invoke-Action $store 'toggle' '1') 'changed' 'toggle the last one'
 Assert-Equal (Build-Data $store '').remaining 0 'nothing left open'
 
-$root = Join-Path ([IO.Path]::GetTempPath()) ("winarchy-todo-tests-" + [Guid]::NewGuid().ToString('N'))
+$root = Join-Path ([IO.Path]::GetTempPath()) ("illium-todo-tests-" + [Guid]::NewGuid().ToString('N'))
 try {
     $path = Join-Path $root 'nested\tasks.json'
     Write-Store $path $store
@@ -79,11 +79,11 @@ try {
     [void](Invoke-Action $recovered 'add' 'fresh')
     Assert-Equal $recovered.tasks[1].id '8' 'new id after recovery'
 
-    # Whole-script run, the way Winarchy invokes it.
-    $env:WINARCHY_APPLET_STORE = Join-Path $root 'live.json'
-    # Winarchy spawns the provider through the Windows API with a command line
+    # Whole-script run, the way Illium invokes it.
+    $env:ILLIUM_APPLET_STORE = Join-Path $root 'live.json'
+    # Illium spawns the provider through the Windows API with a command line
     # it escapes itself; PowerShell 5.1's own native-command call mangles quoted
-    # JSON, so the child is started the same way Winarchy starts it.
+    # JSON, so the child is started the same way Illium starts it.
     $run = {
         param($action)
         $quoted = '"' + $action.Replace('"', '\"') + '"'
@@ -111,6 +111,6 @@ try {
     Assert-Equal $cleared.error '' 'live run without error'
 } finally {
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item Env:\WINARCHY_APPLET_STORE -ErrorAction SilentlyContinue
+    Remove-Item Env:\ILLIUM_APPLET_STORE -ErrorAction SilentlyContinue
 }
 Write-Output 'todo provider fixtures OK'

@@ -19,7 +19,7 @@ class InstallTests(unittest.TestCase):
         self.home = Path(self.temp.name) / 'linux'
         self.windows = Path(self.temp.name) / 'windows'
         self.claude = self.home / '.claude'
-        self.config = self.windows / '.config/winarchy'
+        self.config = self.windows / '.config/illium'
         self.claude.mkdir(parents=True)
         self.config.mkdir(parents=True)
         self.original = {'statusLine': {'type': 'command', 'command': '~/.claude/statusline.sh', 'padding': 2}, 'unrelated': {'keep': True}}
@@ -64,7 +64,7 @@ class InstallTests(unittest.TestCase):
         self.assertEqual((self.claude / 'settings.json').read_bytes(), original)
         self.assertEqual((self.config / 'bar.toml').read_bytes(), self.bar)
         self.assertFalse((self.config / 'applets/claude-usage').exists())
-        self.assertFalse((self.home / '.local/share/winarchy-applets/claude-usage').exists())
+        self.assertFalse((self.home / '.local/share/illium-applets/claude-usage').exists())
 
     def test_multiline_bar_requires_manual_setup(self):
         with self.assertRaises(ValueError):

@@ -3,14 +3,14 @@ $ErrorActionPreference='Stop'
 [Console]::OutputEncoding=New-Object Text.UTF8Encoding($false)
 $directory=Join-Path $env:TEMP ('activity-test-'+[Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $directory | Out-Null
-$previous=$env:WINARCHY_APPLET_CACHE_PATH
-$env:WINARCHY_APPLET_CACHE_PATH=Join-Path $directory 'cache'
+$previous=$env:ILLIUM_APPLET_CACHE_PATH
+$env:ILLIUM_APPLET_CACHE_PATH=Join-Path $directory 'cache'
 $exe=Join-Path $directory 'activity-monitor.exe'
 Copy-Item -LiteralPath $Collector -Destination $exe
 $child=$null
 function Assert($condition,$message) { if(-not $condition) { throw $message } }
 function Invoke-Collector([string]$argument='') {
-    # Use the same no-console, direct executable model as Winarchy. Quote one
+    # Use the same no-console, direct executable model as Illium. Quote one
     # argv entry, including backslashes before quotes, without invoking a shell.
     $start=New-Object Diagnostics.ProcessStartInfo
     $start.FileName=$exe; $start.UseShellExecute=$false; $start.CreateNoWindow=$true
@@ -44,7 +44,7 @@ try {
     Start-Sleep -Seconds 2
     $third=Invoke-Collector 'sample'
     Assert ($third.cpu_chart.Count -gt 0) 'Graph segments should be available'
-    $cache=Join-Path $env:WINARCHY_APPLET_CACHE_PATH 'state.json'
+    $cache=Join-Path $env:ILLIUM_APPLET_CACHE_PATH 'state.json'
     $before=Get-Content -LiteralPath $cache -Raw|ConvertFrom-Json
     $null=Invoke-Collector
     $after=Get-Content -LiteralPath $cache -Raw|ConvertFrom-Json
@@ -85,6 +85,6 @@ try {
     Write-Output 'Native Activity Monitor fixtures passed.'
 } finally {
     if($child) { if(-not $child.HasExited) {$child.Kill();$child.WaitForExit()};$child.Dispose() }
-    $env:WINARCHY_APPLET_CACHE_PATH=$previous
+    $env:ILLIUM_APPLET_CACHE_PATH=$previous
     Remove-Item -LiteralPath $directory -Recurse -Force
 }

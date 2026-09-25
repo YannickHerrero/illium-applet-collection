@@ -61,7 +61,7 @@ def install(config, binary, windows_config, backup_root):
     if target.exists() or target.is_symlink():
         raise ValueError('Existing Winagotchi will not be overwritten; back it up and upgrade manually')
     if (target.parent / 'omagotchi').exists():
-        raise ValueError('An old Omagotchi installation exists; migrate it with Winarchy stopped (see README)')
+        raise ValueError('An old Omagotchi installation exists; migrate it with Illium stopped (see README)')
     if bar.is_symlink() or not bar.is_file():
         raise ValueError('bar.toml must be an existing regular file')
     if target.parent.is_symlink():
@@ -124,15 +124,15 @@ def install(config, binary, windows_config, backup_root):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--config', type=Path, help='Winarchy configuration directory, WSL spelling')
-    group.add_argument('--windows-home', type=Path, help='WSL Windows profile; uses .config/winarchy')
+    group.add_argument('--config', type=Path, help='Illium configuration directory, WSL spelling')
+    group.add_argument('--windows-home', type=Path, help='WSL Windows profile; uses .config/illium')
     parser.add_argument('--binary', type=Path, default=ROOT / 'provider/target/x86_64-pc-windows-msvc/release/winagotchi.exe')
     parser.add_argument('--windows-config', help='Native Windows spelling; defaults to wslpath -w')
-    parser.add_argument('--backup-root', type=Path, default=Path.home() / '.local/state/winarchy-applet-collection/backups')
+    parser.add_argument('--backup-root', type=Path, default=Path.home() / '.local/state/illium-applet-collection/backups')
     args = parser.parse_args()
     os.umask(0o077)
     try:
-        config = args.config or args.windows_home / '.config/winarchy'
+        config = args.config or args.windows_home / '.config/illium'
         native = args.windows_config or subprocess.check_output(['wslpath', '-w', str(config.resolve())], text=True).strip()
         result = install(config, args.binary, native, args.backup_root)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:

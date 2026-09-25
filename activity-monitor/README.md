@@ -1,20 +1,20 @@
-# Activity Monitor for Winarchy
+# Activity Monitor for Illium
 
-A standalone Windows applet combining the CPU and memory bar modules, with an Overview dashboard and a searchable Processes table. English UI, native Unicode process names, current Winarchy theme colors, software-rendered step graphs. No changes to Winarchy source, no persistent service, no network requests and no administrator elevation.
+A standalone Windows applet combining the CPU and memory bar modules, with an Overview dashboard and a searchable Processes table. English UI, native Unicode process names, current Illium theme colors, software-rendered step graphs. No changes to Illium source, no persistent service, no network requests and no administrator elevation.
 
-Inspired by [stappmus/omarchy-activity-monitor](https://github.com/stappmus/omarchy-activity-monitor), MIT, reference revision `b25a98c7ff2a688ab74d86d2be42249e2db2f9cf` (v2.1.1). This is an independent Rust/Slint Windows implementation, not a wrapper around its Linux scripts. No upstream scripts, binaries or assets are bundled. The icon is an original drawing. The existing Winarchy process sampler also informed the API choices; creation-time checks and unavailable-value handling are implemented independently here.
+Inspired by [stappmus/omarchy-activity-monitor](https://github.com/stappmus/omarchy-activity-monitor), MIT, reference revision `b25a98c7ff2a688ab74d86d2be42249e2db2f9cf` (v2.1.1). This is an independent Rust/Slint Windows implementation, not a wrapper around its Linux scripts. No upstream scripts, binaries or assets are bundled. The icon is an original drawing. The existing Illium process sampler also informed the API choices; creation-time checks and unavailable-value handling are implemented independently here.
 
 ## Features
 
 - Bar: **CPU used % · physical RAM used %** (not free RAM).
 - Overview: CPU/RAM graphs for the last 60 seconds, memory used/available/total, uptime, network and disk read/write rates, fixed-volume free space and the three busiest processes.
 - Processes: name, PID, CPU and working set; CPU/memory descending or name/PID ascending sorting; Unicode search; up to 80 matching rows, with the matched and sampled counts shown. Narrow the search to find a process outside those 80 rows.
-- A click selects, never kills. End task requires a separate confirmation, pins PID **and creation time**, then opens one handle and revalidates identity/critical status before terminating that same handle. Winarchy and the collector are blocked, as are critical processes and a conservative list of essential Windows names. Access denied never triggers elevation. Unsaved work can be lost.
+- A click selects, never kills. End task requires a separate confirmation, pins PID **and creation time**, then opens one handle and revalidates identity/critical status before terminating that same handle. Illium and the collector are blocked, as are critical processes and a conservative list of essential Windows names. Access denied never triggers elevation. Unsaved work can be lost.
 - Open Task Manager is an explicit alternative for operations Windows does not allow here.
 
 Keys: `1` Overview, `2` Processes, `/` search, Enter applies the search and leaves the input, `j`/`k` or arrows move the selection, `x` asks to end the selected process, Enter confirms that dialog, `r` refreshes. Escape cancels confirmation/leaves search before closing the popup. Typing into search is picked up by the next poll; it does not start a process per keystroke.
 
-The 580×650 logical-pixel popup scrolls when Winarchy fits it to a smaller work area. The table also scrolls. Confirmation covers the content and is cleared on dismissal.
+The 580×650 logical-pixel popup scrolls when Illium fits it to a smaller work area. The table also scrolls. Confirmation covers the content and is cleared on dismissal.
 
 ## Metric definitions and limitations
 
@@ -33,12 +33,12 @@ First samples, counter resets, changed adapter identities or configured disk num
 Closed: the normal five-second provider interval reads CPU/RAM only. Open: the view requests detailed sampling two seconds after the provider becomes idle. No overlapping work or accumulating timer actions; no privileged helper or permanent daemon. Resource deltas, a bounded process snapshot and up to 60 history observations persist under:
 
 ```text
-%LOCALAPPDATA%\Winarchy\cache\activity-monitor\state.json
+%LOCALAPPDATA%\Illium\cache\activity-monitor\state.json
 ```
 
-The directory inherits the user's profile permissions. State is bounded to 4 MiB, locked across configuration generations and atomically replaced. Output is capped at 60 KiB, below Winarchy's 64 KiB limit. Corrupt/obsolete cache data is discarded. `WINARCHY_APPLET_CACHE_PATH` can select a separate **directory** for tests.
+The directory inherits the user's profile permissions. State is bounded to 4 MiB, locked across configuration generations and atomically replaced. Output is capped at 60 KiB, below Illium's 64 KiB limit. Corrupt/obsolete cache data is discarded. `ILLIUM_APPLET_CACHE_PATH` can select a separate **directory** for tests.
 
-Read-only diagnostics: `activity-monitor.exe --diagnose` reports per-collector microseconds, without process names. Each normal response also includes `collector_ms` (not shown in the popup). On the development machine the native work took roughly 1–3 ms for a basic read and 15–55 ms for a detailed read. **End-to-end process launch was much slower**, commonly around one second and occasionally over ten seconds in native fixture runs. The two-second interval is therefore not a guaranteed sampling period. Rates/graphs use measured time, and a slower launch never blocks Winarchy's UI. PDH disk queries were deliberately rejected after measuring >1 second of initialization alone; the direct disk query took below a millisecond.
+Read-only diagnostics: `activity-monitor.exe --diagnose` reports per-collector microseconds, without process names. Each normal response also includes `collector_ms` (not shown in the popup). On the development machine the native work took roughly 1–3 ms for a basic read and 15–55 ms for a detailed read. **End-to-end process launch was much slower**, commonly around one second and occasionally over ten seconds in native fixture runs. The two-second interval is therefore not a guaranteed sampling period. Rates/graphs use measured time, and a slower launch never blocks Illium's UI. PDH disk queries were deliberately rejected after measuring >1 second of initialization alone; the direct disk query took below a millisecond.
 
 ## Build and install
 
@@ -50,17 +50,17 @@ On Windows, from `collector/`:
 cargo build --release --locked
 ```
 
-From WSL with cargo-xwin and the same cross toolchain used for Winarchy:
+From WSL with cargo-xwin and the same cross toolchain used for Illium:
 
 ```sh
 cd activity-monitor/collector
 PATH="$HOME/.local/llvm19/bin:$PATH" cargo xwin build \
   --target x86_64-pc-windows-msvc --release --locked
 cd ..
-python3 -B install.py --config /mnt/c/Users/YOUR_USER/.config/winarchy
+python3 -B install.py --config /mnt/c/Users/YOUR_USER/.config/illium
 ```
 
-Use the actual Windows `WINARCHY_CONFIG_HOME` if overridden. Python 3.11+ is only needed for this WSL installer. It validates the PE architecture, stages the complete applet outside the watched configuration tree, writes an absolute Windows provider command, saves `bar.toml` under `~/.local/state/winarchy-applet-collection/backups/activity-install-*`, then replaces CPU/memory entries with one `activity-monitor` at the first replaced position. Other bar entries, comments outside the changed arrays, theme, wallpaper and Claude configuration remain untouched. Complex/multiline arrays are refused instead of reformatted. An existing applet is never overwritten. No Winarchy rebuild/restart is needed.
+Use the actual Windows `ILLIUM_CONFIG_HOME` if overridden. Python 3.11+ is only needed for this WSL installer. It validates the PE architecture, stages the complete applet outside the watched configuration tree, writes an absolute Windows provider command, saves `bar.toml` under `~/.local/state/illium-applet-collection/backups/activity-install-*`, then replaces CPU/memory entries with one `activity-monitor` at the first replaced position. Other bar entries, comments outside the changed arrays, theme, wallpaper and Claude configuration remain untouched. Complex/multiline arrays are refused instead of reformatted. An existing applet is never overwritten. No Illium rebuild/restart is needed.
 
 For a manual Windows installation, copy `applet.toml`, `view.slint`, `icon.svg`, `README.md`, `LICENSE` and the built `activity-monitor.exe` to the applet directory. Set `command` to the executable's **absolute Windows path**, back up `bar.toml`, then replace its `cpu`/`memory` entries with `activity-monitor`.
 

@@ -3,9 +3,9 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
 . "$PSScriptRoot\lib.ps1"
 if (-not $env:LOCALAPPDATA) { throw 'Windows LOCALAPPDATA is required.' }
-$runtime = Join-Path $env:LOCALAPPDATA 'Winarchy\calendar-agenda'
+$runtime = Join-Path $env:LOCALAPPDATA 'Illium\calendar-agenda'
 [void][IO.Directory]::CreateDirectory($runtime)
-$mutex = New-Object Threading.Mutex($false, ('Local\WinarchyAgenda-' + (Get-AgendaKey 'runtime' $runtime)))
+$mutex = New-Object Threading.Mutex($false, ('Local\IlliumAgenda-' + (Get-AgendaKey 'runtime' $runtime)))
 $locked = $false
 $jobs = @()
 try {
@@ -94,7 +94,7 @@ try {
             $errors[$connection.id] = 'Calendar worker could not start.'
         }
     }
-    # Parallel sources share one deadline, comfortably below Winarchy's 20 second limit.
+    # Parallel sources share one deadline, comfortably below Illium's 20 second limit.
     foreach ($job in $jobs) {
         $remaining = [Math]::Max(0, 11000 - [int]$watch.ElapsedMilliseconds)
         $finished = $job.process.WaitForExit($remaining)

@@ -113,7 +113,7 @@ pub fn identity(key: &str) -> Result<(u32, u64), String> {
 }
 pub fn protected(name: &str) -> bool {
     let name = name.to_ascii_lowercase();
-    name.starts_with("winarchy")
+    name.starts_with("illium")
         || [
             "activity-monitor.exe",
             "system",
@@ -382,7 +382,7 @@ mod tests {
         assert_eq!(identity("42:123").unwrap(), (42, 123));
         assert!(Action::parse(Some(r#"["end","","cpu","42"]"#)).is_err());
         assert!(Action::parse(Some(r#"["shell","","cpu",""]"#)).is_err());
-        assert!(protected("WINARCHY.exe"));
+        assert!(protected("ILLIUM.exe"));
         assert!(protected("lsass.exe"));
         assert!(!protected("notepad.exe"));
     }

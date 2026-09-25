@@ -70,7 +70,7 @@ def install(config_home, local_home):
     if target.is_dir() and original == updated and all(
             (target / f).is_file() and (target / f).read_bytes() == contents[f] for f in FILES):
         return {'applet': str(target), 'unchanged': True}
-    backup_root = Path(local_home) / '.local/state/winarchy-applet-collection/backups'
+    backup_root = Path(local_home) / '.local/state/illium-applet-collection/backups'
     backup_root.mkdir(parents=True, exist_ok=True)
     backup = Path(tempfile.mkdtemp(prefix=datetime.datetime.now().strftime(NAME + '-%Y%m%d-%H%M%S-'), dir=backup_root))
     (backup / 'bar.toml').write_bytes(original)
@@ -128,7 +128,7 @@ def main():
         parser.error('--windows-home or --config-home is required')
     os.umask(0o077)
     try:
-        result = install(args.config_home or args.windows_home / '.config/winarchy', Path.home())
+        result = install(args.config_home or args.windows_home / '.config/illium', Path.home())
     except (OSError, ValueError, TypeError) as error:
         parser.exit(1, f'{error}\n')
     print(json.dumps(result, indent=2))

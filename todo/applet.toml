@@ -8,5 +8,5 @@ popup = { width = 380, height = 470 }
 
 [settings]
 # Absolute Windows path of the task store; empty means
-# %LOCALAPPDATA%\winarchy-applet-collection\todo\tasks.json.
+# %LOCALAPPDATA%\illium-applet-collection\todo\tasks.json.
 store = ""

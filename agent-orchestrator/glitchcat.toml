@@ -1,5 +1,5 @@
 # Glitchcat atlas from OmaPets / Petdex; see ATTRIBUTION.md.
-# Each pack owns its geometry and state mapping; no Glitchcat rules in Winarchy.
+# Each pack owns its geometry and state mapping; no Glitchcat rules in Illium.
 sheet = "glitchcat.png"
 frame_width = 192
 frame_height = 208

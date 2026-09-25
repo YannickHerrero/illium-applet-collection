@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Every coding agent visible from WSL, as one JSON object for the Winarchy view.
+"""Every coding agent visible from WSL, as one JSON object for the Illium view.
 
 Sources: the running herdr servers (their Unix sockets) and the running tasks
 of the Multica agents (the local server's REST API). Read-only: nothing is focused, cancelled
-or killed, and the action argument Winarchy appends is ignored.
+or killed, and the action argument Illium appends is ignored.
 
-Winarchy runs this through `wsl.exe`, so it starts from a non-interactive
+Illium runs this through `wsl.exe`, so it starts from a non-interactive
 shell; every path used here is derived from $HOME.
 """
 import datetime
@@ -26,7 +26,7 @@ RESPONSE_BYTE_CAP = 2 * 1024 * 1024
 ISSUE_LOOKUP_CAP = 8
 CARD_CAP = 60
 TEXT_CAP = 160
-# Winarchy reads at most 64 KiB from a provider; stay well under it.
+# Illium reads at most 64 KiB from a provider; stay well under it.
 OUTPUT_BYTE_CAP = 60 * 1024
 
 # One vocabulary for both sources, in display order.
@@ -121,7 +121,7 @@ def herdr_sockets(home):
 
 def herdr_snapshot(path):
     """The live snapshot of one server, or None when it does not answer."""
-    request = json.dumps({'id': 'winarchy:agent-orchestrator', 'method': 'session.snapshot', 'params': {}}) + '\n'
+    request = json.dumps({'id': 'illium:agent-orchestrator', 'method': 'session.snapshot', 'params': {}}) + '\n'
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
             sock.settimeout(HERDR_TIMEOUT)
@@ -320,7 +320,7 @@ def pet_transition(observations, summary, previous, timestamp):
 
 
 def pet_state(home, observations, summary, reference):
-    path = os.path.join(home, '.local/state/winarchy-applet-collection/agent-orchestrator/pet.json')
+    path = os.path.join(home, '.local/state/illium-applet-collection/agent-orchestrator/pet.json')
     previous = {}
     try:
         with open(path, encoding='utf-8') as handle:

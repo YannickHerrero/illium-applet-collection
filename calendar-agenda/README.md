@@ -1,6 +1,6 @@
 # Calendar Agenda
 
-An optional, read-only, multisource agenda for Winarchy. It has its **own bar icon**;
+An optional, read-only, multisource agenda for Illium. It has its **own bar icon**;
 the built-in `calendar` applet and the date/clock click are never replaced.
 
 The first connector reads **classic Outlook for Windows via COM**. The monthly grid,
@@ -10,7 +10,7 @@ implications still need investigation. Proton Mail Bridge does not supply calend
 
 ## Requirements
 
-- Winarchy with external PowerShell applet providers and Slint 1.12.1 views.
+- Illium with external PowerShell applet providers and Slint 1.12.1 views.
 - Windows PowerShell 5.1 (included in Windows).
 - Classic Outlook, with a working profile/default calendar. The new Outlook alone
   does not expose this COM API. Enterprise security policy can restrict COM/body access.
@@ -30,7 +30,7 @@ From the collection repository, in WSL:
 python3 -B calendar-agenda/install.py --windows-home /mnt/c/Users/<WindowsUser>
 ```
 
-Alternatively use `--config-home /path/to/.config/winarchy`.
+Alternatively use `--config-home /path/to/.config/illium`.
 The installer backs up `bar.toml` and an existing applet outside the watched config
 folder, then adds `calendar-agenda` before `wifi` in the right section (or at its end).
 An existing reference in any section stays where it is. Repeating an unchanged
@@ -46,7 +46,7 @@ A multiline `right` array requires manually adding `calendar-agenda` first.
   leap years). The percentage is completed whole percent; browsing another month does
   not change this indicator.
 - The popup is 440 logical pixels wide and keeps a stable height from
-  `popup.height` (820 by default, further limited by Winarchy to the monitor).
+  `popup.height` (820 by default, further limited by Illium to the monitor).
   Only the event list scrolls; selecting a date never moves the controls.
   All 42 days are supplied in one bounded snapshot. Day selection and Today within
   the grid are immediate local interactions, even while a source is refreshing.
@@ -85,10 +85,10 @@ Closing and reopening returns to today's local date.
 
 ## Connections and private state
 
-Created on first use, outside Winarchy's watched configuration tree:
+Created on first use, outside Illium's watched configuration tree:
 
 ```text
-%LOCALAPPDATA%\Winarchy\calendar-agenda\
+%LOCALAPPDATA%\Illium\calendar-agenda\
   connections.json
   state.json
   cache-<connection-id>.json
@@ -135,7 +135,7 @@ cleanup too. Delete the runtime directory to erase all cached events and setting
 
 Each source runs in a short-lived Windows PowerShell worker. All workers share an
 11-second deadline, rather than stacking one timeout per source; only those workers
-are terminated, never Outlook. The caller remains below Winarchy's 20-second provider
+are terminated, never Outlook. The caller remains below Illium's 20-second provider
 budget in normal operation. Cold Outlook startup or a security prompt can time out:
 open Outlook and refresh again. A named mutex protects private state from overlapping
 provider processes.
@@ -143,7 +143,7 @@ provider processes.
 Per connection: at most 200 visited folders, depth 12, 24 calendars, and 1,200
 occurrences. The status says `results limited` if a bound is reached. One day shows
 at most 40 rows and indicates omitted rows. The output is additionally reduced below
-60,000 UTF-8 bytes to stay below Winarchy's 64 KiB limit. There is no unbounded recurrence
+60,000 UTF-8 bytes to stay below Illium's 64 KiB limit. There is no unbounded recurrence
 `Count` call. Remote/slow Outlook folders can still make that connection unavailable.
 
 ## Connector contract (v1)
@@ -209,8 +209,8 @@ python3 -B calendar-agenda/tests/live.py --windows-home /mnt/c/Users/<WindowsUse
 ## Uninstall / rollback
 
 1. Remove only `calendar-agenda` from your bar arrays.
-2. Delete `%USERPROFILE%\.config\winarchy\applets\calendar-agenda`.
-3. Optionally delete `%LOCALAPPDATA%\Winarchy\calendar-agenda` (private cache/settings).
+2. Delete `%USERPROFILE%\.config\illium\applets\calendar-agenda`.
+3. Optionally delete `%LOCALAPPDATA%\Illium\calendar-agenda` (private cache/settings).
 
 For an update rollback, copy the applet from the printed backup path. Restore the
 backed-up `bar.toml` only if you have made no subsequent bar changes; otherwise remove

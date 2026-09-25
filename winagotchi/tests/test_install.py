@@ -25,7 +25,7 @@ class InstallTests(unittest.TestCase):
         self.backups = self.root / 'backups'
 
     def run_install(self):
-        return install.install(self.config, self.binary, r'C:\Users\Test User\.config\winarchy', self.backups)
+        return install.install(self.config, self.binary, r'C:\Users\Test User\.config\illium', self.backups)
 
     def test_preserves_bar_and_installs_complete_silent_pack(self):
         result = self.run_install()
@@ -37,7 +37,7 @@ class InstallTests(unittest.TestCase):
         self.assertTrue(self.bar.read_bytes().startswith(b'\xef\xbb\xbf'))
         self.assertEqual((Path(result['backup']) / 'bar.toml').read_bytes(), self.original)
         app = Path(result['applet']); manifest = tomllib.loads((app / 'applet.toml').read_text())
-        self.assertEqual(manifest['command'], [r'C:\Users\Test User\.config\winarchy\applets\winagotchi\winagotchi.exe'])
+        self.assertEqual(manifest['command'], [r'C:\Users\Test User\.config\illium\applets\winagotchi\winagotchi.exe'])
         self.assertEqual((app / 'winagotchi.exe').read_bytes(), self.binary.read_bytes())
         self.assertEqual(len(list((app / 'assets/sprites').glob('*.png'))), 83)
         for icon in app.glob('*.png'):

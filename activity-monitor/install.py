@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the independent applet; never edit Winarchy source or Claude settings."""
+"""Install the independent applet; never edit Illium source or Claude settings."""
 import argparse
 import json
 import os
@@ -94,7 +94,7 @@ def install(config, binary, windows_config, backup_root):
     backup = Path(tempfile.mkdtemp(prefix='activity-install-', dir=backup_root))
     (backup/'bar.toml').write_bytes(original)
     (backup/'bar.toml').chmod(0o600)
-    # Stage beside, not inside, Winarchy's watched configuration directory.
+    # Stage beside, not inside, Illium's watched configuration directory.
     stage = Path(tempfile.mkdtemp(prefix='.activity-stage-', dir=config.parent))
     published = False
     written = False
@@ -127,10 +127,10 @@ def install(config, binary, windows_config, backup_root):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config', required=True, type=Path, help='Winarchy configuration directory (WSL path)')
+    parser.add_argument('--config', required=True, type=Path, help='Illium configuration directory (WSL path)')
     parser.add_argument('--binary', type=Path, default=ROOT/'collector/target/x86_64-pc-windows-msvc/release/activity-monitor.exe')
     parser.add_argument('--windows-config', help='Native Windows spelling; defaults to wslpath -w')
-    parser.add_argument('--backup-root', type=Path, default=Path.home()/'.local/state/winarchy-applet-collection/backups')
+    parser.add_argument('--backup-root', type=Path, default=Path.home()/'.local/state/illium-applet-collection/backups')
     args = parser.parse_args()
     native = args.windows_config or subprocess.check_output(['wslpath', '-w', str(args.config.resolve())], text=True).strip()
     print(json.dumps(install(args.config, args.binary, native, args.backup_root), indent=2))

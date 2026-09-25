@@ -1,4 +1,4 @@
-//! Bounded, locked, atomic state. Never lives in Winarchy's watched config tree.
+//! Bounded, locked, atomic state. Never lives in Illium's watched config tree.
 #![cfg_attr(not(windows), allow(dead_code))]
 use fs2::FileExt;
 use std::{

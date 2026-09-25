@@ -3,8 +3,8 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
 
 function Resolve-Executable {
-    if ($env:WINARCHY_APPLET_EXECUTABLE) { return $env:WINARCHY_APPLET_EXECUTABLE }
-    return Join-Path $env:LOCALAPPDATA 'Programs\Winarchy\winarchy-dictate.exe'
+    if ($env:ILLIUM_APPLET_EXECUTABLE) { return $env:ILLIUM_APPLET_EXECUTABLE }
+    return Join-Path $env:LOCALAPPDATA 'Programs\Illium\illium-dictate.exe'
 }
 # The resident is a GUI-subsystem process: its --status answer is its exit code
 # (0 loaded, 2 idle, anything else not running), not its console output.
@@ -13,7 +13,7 @@ function Invoke-Resident([string]$exe, [string]$verb) {
     return $process.ExitCode
 }
 function Get-ResidentMemoryMb {
-    $process = Get-Process -Name 'winarchy-dictate' -ErrorAction SilentlyContinue | Select-Object -First 1
+    $process = Get-Process -Name 'illium-dictate' -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($null -eq $process) { return 0 }
     return [int][Math]::Round($process.WorkingSet64 / 1MB)
 }
@@ -26,7 +26,7 @@ function Build-Data([int]$exitCode, [int]$memoryMb, [string]$failure) {
         detail = switch ($state) {
             'loaded' { "Ready: holding the dictate key records at once. About $memoryMb MB of RAM." }
             'idle' { "Holding the dictate key loads the model first (about 3 s). Resident uses $memoryMb MB." }
-            default { 'Bind "dictate" in keybindings.toml and reload; the daemon starts winarchy-dictate.exe.' }
+            default { 'Bind "dictate" in keybindings.toml and reload; the daemon starts illium-dictate.exe.' }
         }
         error = $failure
     }
@@ -37,7 +37,7 @@ if ($FunctionsOnly) { return }
 $failure = ''
 try {
     $exe = Resolve-Executable
-    if (-not (Test-Path -LiteralPath $exe)) { throw "winarchy-dictate.exe not found at $exe" }
+    if (-not (Test-Path -LiteralPath $exe)) { throw "illium-dictate.exe not found at $exe" }
     if ($Action -eq 'load' -or $Action -eq 'unload') {
         $code = Invoke-Resident $exe "--$Action"
         if ($code -ne 0) { $failure = "Request $Action failed (exit $code)" }

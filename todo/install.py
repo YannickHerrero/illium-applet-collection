@@ -64,7 +64,7 @@ def install(config_home, local_home):
         raise ValueError('bar.toml must be an existing regular file')
     original_bar = bar_path.read_bytes()
     new_bar = patched_bar(original_bar)
-    backup_root = local_home / '.local/state/winarchy-applet-collection/backups'
+    backup_root = local_home / '.local/state/illium-applet-collection/backups'
     backup_root.mkdir(parents=True, exist_ok=True)
     backup = Path(tempfile.mkdtemp(prefix=datetime.datetime.now().strftime(f'{NAME}-install-%Y%m%d-%H%M%S-'), dir=backup_root))
     (backup / 'bar.toml').write_bytes(original_bar)
@@ -72,7 +72,7 @@ def install(config_home, local_home):
     written = False
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        # Stage beside, not inside, Winarchy's watched configuration directory,
+        # Stage beside, not inside, Illium's watched configuration directory,
         # and publish a complete folder before the bar refers to it.
         stage = Path(tempfile.mkdtemp(prefix=f'.{NAME}-install-', dir=config_home.parent))
         try:
@@ -103,13 +103,13 @@ def install(config_home, local_home):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--windows-home', type=Path, help='WSL-visible Windows profile, e.g. /mnt/c/Users/Name')
-    parser.add_argument('--config-home', type=Path, help='WSL-visible Winarchy configuration directory, if not <windows home>/.config/winarchy')
+    parser.add_argument('--config-home', type=Path, help='WSL-visible Illium configuration directory, if not <windows home>/.config/illium')
     args = parser.parse_args()
     if not args.config_home and not args.windows_home:
         parser.error('--windows-home or --config-home is required')
     os.umask(0o077)
     try:
-        result = install(args.config_home or args.windows_home / '.config/winarchy', Path.home())
+        result = install(args.config_home or args.windows_home / '.config/illium', Path.home())
     except (OSError, ValueError, TypeError) as error:
         parser.exit(1, f'{error}\n')
     print(json.dumps(result, indent=2))

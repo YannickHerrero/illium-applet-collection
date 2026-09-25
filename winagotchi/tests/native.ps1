@@ -2,10 +2,10 @@ param([Parameter(Mandatory=$true)][string]$Provider)
 $ErrorActionPreference = 'Stop'
 $Provider = (Resolve-Path $Provider).Path
 $directory = Join-Path ([IO.Path]::GetTempPath()) ('winagotchi-test-' + [guid]::NewGuid().ToString('N'))
-$previous = $env:WINARCHY_APPLET_STATE_DIR
-$previousWorkDay = $env:WINARCHY_APPLET_WORK_DAY
-$env:WINARCHY_APPLET_WORK_DAY = $null
-$env:WINARCHY_APPLET_STATE_DIR = $directory
+$previous = $env:ILLIUM_APPLET_STATE_DIR
+$previousWorkDay = $env:ILLIUM_APPLET_WORK_DAY
+$env:ILLIUM_APPLET_WORK_DAY = $null
+$env:ILLIUM_APPLET_STATE_DIR = $directory
 function Assert($ok, $message) { if (-not $ok) { throw $message } }
 function Run([string]$action = 'refresh') {
     $raw = & $Provider $action
@@ -26,16 +26,16 @@ try {
     Assert ((Read-State).session -eq $firstSession) 'Same parent must retain session identity'
     Assert ($again.generation -eq 1) 'Refresh must not reset generation'
     Assert (-not (Read-State).work_day) 'Missing setting must default off'
-    $env:WINARCHY_APPLET_WORK_DAY = 'true'
+    $env:ILLIUM_APPLET_WORK_DAY = 'true'
     $configured = Run
     Assert ((Read-State).work_day) 'Config must enable work day'
     Assert (-not ($configured.PSObject.Properties.Name -contains 'work_day')) 'UI snapshot must not expose the setting'
-    $env:WINARCHY_APPLET_WORK_DAY = 'false'
+    $env:ILLIUM_APPLET_WORK_DAY = 'false'
     $null = Run
     Assert (-not (Read-State).work_day) 'Config must override saved true'
-    $env:WINARCHY_APPLET_WORK_DAY = 'true'
+    $env:ILLIUM_APPLET_WORK_DAY = 'true'
     $null = Run
-    $env:WINARCHY_APPLET_WORK_DAY = $null
+    $env:ILLIUM_APPLET_WORK_DAY = $null
     $null = Run
     Assert (-not (Read-State).work_day) 'Removing config must override saved true'
     $state = Read-State
@@ -68,7 +68,7 @@ try {
     Assert (-not (Test-Path (Join-Path $directory 'state.pending'))) 'Atomic save left a temporary file'
     Write-Output "Native fixtures passed (isolated save, no real pet touched); total $($watch.ElapsedMilliseconds) ms"
 } finally {
-    $env:WINARCHY_APPLET_STATE_DIR = $previous
-    $env:WINARCHY_APPLET_WORK_DAY = $previousWorkDay
+    $env:ILLIUM_APPLET_STATE_DIR = $previous
+    $env:ILLIUM_APPLET_WORK_DAY = $previousWorkDay
     if (Test-Path $directory) { Remove-Item -Recurse -Force $directory }
 }

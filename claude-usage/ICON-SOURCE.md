@@ -10,4 +10,4 @@ The Claude silhouette in `icon.svg` is copied unchanged from Simple Icons:
 
 This is a third-party vector reproduction of the Claude mark, not a claim that Anthropic distributed this exact SVG. Claude and its logo remain Anthropic trademarks; CC0 does not grant trademark rights or imply endorsement. This applet is independent and unofficial.
 
-Winarchy tints the monochrome icon using the active theme; the popup also uses its theme accent. The original silhouette is preserved, not the fixed brand color.
+Illium tints the monochrome icon using the active theme; the popup also uses its theme accent. The original silhouette is preserved, not the fixed brand color.

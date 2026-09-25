@@ -16,7 +16,7 @@ class InstallTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name) / 'linux'
-        self.config = Path(self.temp.name) / 'windows/.config/winarchy'
+        self.config = Path(self.temp.name) / 'windows/.config/illium'
         self.config.mkdir(parents=True)
         self.bar = b'height = 28\r\nleft = ["workspaces"]\r\nright = ["wifi", "herdr"] # retain ] comment\r\n'
         (self.config / 'bar.toml').write_bytes(self.bar)
@@ -33,7 +33,7 @@ class InstallTests(unittest.TestCase):
         applet = Path(result['applet'])
         for name in installer.FILES:
             self.assertTrue((applet / name).is_file())
-        script = self.home / '.local/share/winarchy-applets/agent-orchestrator/agents.py'
+        script = self.home / '.local/share/illium-applets/agent-orchestrator/agents.py'
         self.assertEqual(script.read_bytes(), (installer.ROOT / 'agents.py').read_bytes())
         manifest = tomllib.loads((applet / 'applet.toml').read_text())
         self.assertEqual(manifest['command'], ['wsl.exe', '-d', 'Debian', '--', 'python3', str(script)])
@@ -65,7 +65,7 @@ class InstallTests(unittest.TestCase):
                 self.install()
         self.assertEqual((self.config / 'bar.toml').read_bytes(), self.bar)
         self.assertFalse((self.config / 'applets/agent-orchestrator').exists())
-        self.assertFalse((self.home / '.local/share/winarchy-applets/agent-orchestrator').exists())
+        self.assertFalse((self.home / '.local/share/illium-applets/agent-orchestrator').exists())
 
     def test_multiline_or_duplicate_bar_requires_manual_setup(self):
         for raw in [b'right = [\n"wifi",\n]\n', b'right = ["agent-orchestrator"]\n', b'left = ["agent-orchestrator"]\nright = ["wifi"]\n']:

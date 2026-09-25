@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Render the actual Winarchy bar with all pet states, without running providers.
+"""Render the actual Illium bar with all pet states, without running providers.
 
-xvfb-run -a python3 -B tests/preview_pet.py /tmp/pet-preview --shell-ui /path/to/winarchy/ui/shell.slint
+xvfb-run -a python3 -B tests/preview_pet.py /tmp/pet-preview --shell-ui /path/to/illium/ui/shell.slint
 Requires Slint viewer 1.12.1 and Pillow (development only).
 """
 import argparse
