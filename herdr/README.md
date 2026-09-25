@@ -1,8 +1,8 @@
-# Herdr for Winarchy
+# Herdr for Illium
 
-A read-only Winarchy applet showing the [herdr](https://herdr.dev) servers running in WSL and every agent inside them: which one needs an answer, which one finished while you were looking elsewhere, which ones are still working. Nothing in the popup focuses, stops or deletes anything.
+A read-only Illium applet showing the [herdr](https://herdr.dev) servers running in WSL and every agent inside them: which one needs an answer, which one finished while you were looking elsewhere, which ones are still working. Nothing in the popup focuses, stops or deletes anything.
 
-Inspired by [jankeesvw/omarchy-herdr](https://github.com/jankeesvw/omarchy-herdr), MIT. The session and agent aggregation follows its data script; the window matching, pinning and session actions have no Winarchy equivalent and were left out. No upstream QML, scripts or assets are bundled; the icon is an original drawing.
+Inspired by [jankeesvw/omarchy-herdr](https://github.com/jankeesvw/omarchy-herdr), MIT. The session and agent aggregation follows its data script; the window matching, pinning and session actions have no Illium equivalent and were left out. No upstream QML, scripts or assets are bundled; the icon is an original drawing.
 
 ## What it shows
 
@@ -25,22 +25,22 @@ The list refreshes every 15 seconds while the popup is closed and every 3 second
 ```text
 herdr session list --json  +  herdr api snapshot (one per running server)
   -> herdr-agents.sh (bash + jq, in WSL)
-  -> wsl.exe -d <distribution> -- bash <script>   (Winarchy provider, every poll)
-  -> Winarchy icon, label and popup
+  -> wsl.exe -d <distribution> -- bash <script>   (Illium provider, every poll)
+  -> Illium icon, label and popup
 ```
 
-Winarchy runs the script through `wsl.exe` from Windows, off the UI thread; a poll costs well under a second with the WSL VM up. The script only reads herdr's CLI output and `session.json` files, prints bounded JSON and never writes anywhere. Workspace labels and agent titles are drawn as plain text, never handed to a shell. Titles are trimmed of herdr's leading spinner glyphs so they stay in one column.
+Illium runs the script through `wsl.exe` from Windows, off the UI thread; a poll costs well under a second with the WSL VM up. The script only reads herdr's CLI output and `session.json` files, prints bounded JSON and never writes anywhere. Workspace labels and agent titles are drawn as plain text, never handed to a shell. Titles are trimmed of herdr's leading spinner glyphs so they stay in one column.
 
 Requires `herdr` and `jq` in the WSL distribution. `~/.local/bin` is added to the script's PATH because `wsl.exe` starts a non-interactive shell.
 
 ## Install from WSL
 
 ```sh
-cd ~/dev/winarchy-applet-collection
+cd ~/dev/illium-applet-collection
 python3 -B herdr/install.py --windows-home /mnt/c/Users/<WindowsUser>
 ```
 
-Pass `--config-home` for a Windows `WINARCHY_CONFIG_HOME` override and `--distribution` when herdr runs in another distribution than the current one. The installer refuses to overwrite an existing installation, backs up `bar.toml` under `~/.local/state/winarchy-applet-collection/backups/`, copies the script to `~/.local/share/winarchy-applets/herdr/` in WSL, copies the applet to Windows `~/.config/winarchy/applets/herdr/` with the distribution and absolute script path in its manifest, then appends `herdr` to the bar's `right` array. Other bar entries and comments are preserved; a multiline array is refused instead of reformatted. No Winarchy rebuild or restart is needed.
+Pass `--config-home` for a Windows `ILLIUM_CONFIG_HOME` override and `--distribution` when herdr runs in another distribution than the current one. The installer refuses to overwrite an existing installation, backs up `bar.toml` under `~/.local/state/illium-applet-collection/backups/`, copies the script to `~/.local/share/illium-applets/herdr/` in WSL, copies the applet to Windows `~/.config/illium/applets/herdr/` with the distribution and absolute script path in its manifest, then appends `herdr` to the bar's `right` array. Other bar entries and comments are preserved; a multiline array is refused instead of reformatted. No Illium rebuild or restart is needed.
 
 To remove it, delete `herdr` from the bar, then remove the applet directory and the WSL script directory. Restore the backed-up `bar.toml` only if no other bar edits were made since.
 

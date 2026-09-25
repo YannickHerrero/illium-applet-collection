@@ -66,7 +66,7 @@ if ($FunctionsOnly) { return }
 try {
     if ($Action -eq 'open') { Start-Process 'https://claude.ai/settings/usage' }
     elseif ($Action -notin @('', 'refresh')) { throw 'Unknown Claude usage action' }
-    $cache = if ($env:WINARCHY_APPLET_CACHE_PATH) { $env:WINARCHY_APPLET_CACHE_PATH } else { Join-Path $env:LOCALAPPDATA 'Winarchy/cache/claude-usage/snapshot.json' }
+    $cache = if ($env:ILLIUM_APPLET_CACHE_PATH) { $env:ILLIUM_APPLET_CACHE_PATH } else { Join-Path $env:LOCALAPPDATA 'Illium/cache/claude-usage/snapshot.json' }
     $snapshot = Read-Snapshot $cache
     # An unavailable experimental source must never break the main two quotas.
     $fable = $null

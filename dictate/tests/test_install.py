@@ -15,7 +15,7 @@ class InstallTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name) / 'linux'
-        self.config = Path(self.temp.name) / 'windows/.config/winarchy'
+        self.config = Path(self.temp.name) / 'windows/.config/illium'
         self.config.mkdir(parents=True)
         self.bar = b'height = 28\r\nright = ["claude-usage", "separator", "activity-monitor", "separator", "wifi"] # keep ] me\r\n'
         (self.config / 'bar.toml').write_bytes(self.bar)

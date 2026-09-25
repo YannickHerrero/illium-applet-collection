@@ -1,10 +1,10 @@
 # Claude usage applet
 
-English-language Winarchy panel for the official Claude Code statusline quota fields. The bar shows **5-hour account quota used**, not context utilization. The popup shows 5-hour and weekly quotas, reset times, a linear pace marker and source freshness. A separate, optional CLI probe adds **Fable · Weekly** when Claude Code exposes that quota.
+English-language Illium panel for the official Claude Code statusline quota fields. The bar shows **5-hour account quota used**, not context utilization. The popup shows 5-hour and weekly quotas, reset times, a linear pace marker and source freshness. A separate, optional CLI probe adds **Fable · Weekly** when Claude Code exposes that quota.
 
 ## Requirements
 
-- Winarchy with external Slint applets and Unicode system-font rendering.
+- Illium with external Slint applets and Unicode system-font rendering.
 - Windows PowerShell 5.1 (built in).
 - Python 3.11+ under WSL, using only the standard library.
 - An authenticated Claude Code session that actually emits `rate_limits`. Documentation lists Pro/Max and supported gateway accounts; organization-managed accounts must be checked on real data. No subscription type is inferred from a local credential file.
@@ -15,22 +15,22 @@ The applet and relay do not read authentication files, refresh tokens, scrape De
 ## Install from WSL
 
 ```sh
-cd ~/dev/winarchy-applet-collection
+cd ~/dev/illium-applet-collection
 python3 install.py --windows-home /mnt/c/Users/<WindowsUser>
 ```
 
-If Windows uses `WINARCHY_CONFIG_HOME`, pass its WSL-visible path with `--config-home`. If Claude Code uses another configuration folder, pass `--claude-home` (the installer also respects `CLAUDE_CONFIG_DIR`). The default Windows local-app-data location is assumed; for a redirected profile, configure the relay's `cache` and the applet's `[settings] cache_path` to the same Windows-readable file.
+If Windows uses `ILLIUM_CONFIG_HOME`, pass its WSL-visible path with `--config-home`. If Claude Code uses another configuration folder, pass `--claude-home` (the installer also respects `CLAUDE_CONFIG_DIR`). The default Windows local-app-data location is assumed; for a redirected profile, configure the relay's `cache` and the applet's `[settings] cache_path` to the same Windows-readable file.
 
 The installer:
 
 1. Refuses to overwrite an existing applet/relay.
-2. Backs up Claude settings and the bar configuration under `~/.local/state/winarchy-applet-collection/backups/` with private permissions.
-3. Copies the complete applet to Windows `~/.config/winarchy/applets/claude-usage/`.
-4. Copies `bridge.py` and `fable.py` to `~/.local/share/winarchy-applets/claude-usage/` in WSL.
+2. Backs up Claude settings and the bar configuration under `~/.local/state/illium-applet-collection/backups/` with private permissions.
+3. Copies the complete applet to Windows `~/.config/illium/applets/claude-usage/`.
+4. Copies `bridge.py` and `fable.py` to `~/.local/share/illium-applets/claude-usage/` in WSL.
 5. Wraps the current Claude statusline command, preserving its options and exact stdout/exit status.
 6. Adds only `claude-usage` to the bar's right-hand array. All other settings are retained.
 
-No Winarchy repository changes, rebuild, daemon restart or token copying are needed. Fable uses a short-lived Claude Code process, not a new persistent service. A single-line `right` array is required for automatic bar editing; other layouts fail safely and can be configured manually. Concurrent settings edits cancel setup; failed live writes are rolled back when the files still match the installer's own writes.
+No Illium repository changes, rebuild, daemon restart or token copying are needed. Fable uses a short-lived Claude Code process, not a new persistent service. A single-line `right` array is required for automatic bar editing; other layouts fail safely and can be configured manually. Concurrent settings edits cancel setup; failed live writes are rolled back when the files still match the installer's own writes.
 
 Use a Claude Code session normally after setup. Active sessions may pick up settings automatically; restart a session if it still uses the previous statusline command. The applet shows `—` until real quota fields arrive. No demo data is installed as live usage.
 
@@ -39,12 +39,12 @@ Use a Claude Code session normally after setup. Active sessions may pick up sett
 ```text
 Claude Code statusline JSON
   -> WSL relay (whitelisted quota fields only)
-  -> %LOCALAPPDATA%/Winarchy/cache/claude-usage/snapshot.json
+  -> %LOCALAPPDATA%/Illium/cache/claude-usage/snapshot.json
   -> PowerShell provider (local read every 30 seconds)
-  -> Winarchy icon, label and popup
+  -> Illium icon, label and popup
 ```
 
-The cache is deliberately outside the watched Winarchy configuration. Concurrent relay writes are serialized and published atomically. Unchanged values write at most once per minute; a changed quota can publish immediately. Missing fields do not make a previous reading look fresh. Receipt timestamps are maintained separately for each window.
+The cache is deliberately outside the watched Illium configuration. Concurrent relay writes are serialized and published atomically. Unchanged values write at most once per minute; a changed quota can publish immediately. Missing fields do not make a previous reading look fresh. Receipt timestamps are maintained separately for each window.
 
 - A snapshot receipt is **not** an independent server measurement. Claude Code can resend a cached reading. Simply leaving an idle CLI open does not force new server data.
 - After ten minutes without a valid update, popup values are marked `~` and the panel explains that they are stale. The bar keeps the plain percentage without a `~` prefix; freshness is detailed in the popup.

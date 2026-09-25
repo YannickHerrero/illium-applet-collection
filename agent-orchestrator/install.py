@@ -62,7 +62,7 @@ def atomic_write(path, data):
 
 def install(config_home, distribution, local_home):
     target = config_home / 'applets' / NAME
-    runtime = local_home / '.local/share/winarchy-applets' / NAME
+    runtime = local_home / '.local/share/illium-applets' / NAME
     bar_path = config_home / 'bar.toml'
     if target.exists() or target.is_symlink() or runtime.exists():
         raise ValueError('An applet or script installation already exists; refusing to overwrite it')
@@ -71,8 +71,8 @@ def install(config_home, distribution, local_home):
     original_bar = bar_path.read_bytes()
     new_bar = patched_bar(original_bar)
     manifest = patched_manifest(distribution, runtime / SCRIPT)
-    # Backups are private, outside Git and outside the watched Winarchy configuration.
-    backup_root = local_home / '.local/state/winarchy-applet-collection/backups'
+    # Backups are private, outside Git and outside the watched Illium configuration.
+    backup_root = local_home / '.local/state/illium-applet-collection/backups'
     backup_root.mkdir(parents=True, exist_ok=True)
     backup = Path(tempfile.mkdtemp(prefix=datetime.datetime.now().strftime(f'{NAME}-install-%Y%m%d-%H%M%S-'), dir=backup_root))
     (backup / 'bar.toml').write_bytes(original_bar)
@@ -83,7 +83,7 @@ def install(config_home, distribution, local_home):
         created.append(runtime)
         shutil.copyfile(ROOT / SCRIPT, runtime / SCRIPT)
         target.parent.mkdir(parents=True, exist_ok=True)
-        # Stage beside, not inside, Winarchy's watched configuration directory,
+        # Stage beside, not inside, Illium's watched configuration directory,
         # and publish a complete folder before the bar refers to it.
         stage = Path(tempfile.mkdtemp(prefix=f'.{NAME}-install-', dir=config_home.parent))
         try:
@@ -115,7 +115,7 @@ def install(config_home, distribution, local_home):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--windows-home', type=Path, help='WSL-visible Windows profile, e.g. /mnt/c/Users/Name')
-    parser.add_argument('--config-home', type=Path, help='WSL-visible Winarchy configuration directory, if not <windows home>/.config/winarchy')
+    parser.add_argument('--config-home', type=Path, help='WSL-visible Illium configuration directory, if not <windows home>/.config/illium')
     parser.add_argument('--distribution', default=os.environ.get('WSL_DISTRO_NAME', ''), help='WSL distribution running herdr and Multica (default: the current one)')
     args = parser.parse_args()
     if not args.config_home and not args.windows_home:
@@ -124,7 +124,7 @@ def main():
         parser.error('--distribution is required outside WSL')
     os.umask(0o077)
     try:
-        result = install(args.config_home or args.windows_home / '.config/winarchy', args.distribution, Path.home())
+        result = install(args.config_home or args.windows_home / '.config/illium', args.distribution, Path.home())
     except (OSError, ValueError, TypeError) as error:
         parser.exit(1, f'{error}\n')
     print(json.dumps(result, indent=2))

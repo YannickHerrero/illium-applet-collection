@@ -101,7 +101,7 @@ fn network() -> Option<(String, String, u64, u64)> {
             })
             .collect();
         rows.sort_by_key(|r| r.InterfaceIndex);
-        let selected = std::env::var("WINARCHY_APPLET_INTERFACE").unwrap_or_default();
+        let selected = std::env::var("ILLIUM_APPLET_INTERFACE").unwrap_or_default();
         let row = if selected.is_empty() {
             rows.first().copied()
         } else {
@@ -124,7 +124,7 @@ fn disk() -> Option<(u32, u64, u64)> {
         Storage::FileSystem::*,
         System::{IO::DeviceIoControl, Ioctl::*},
     };
-    let number = std::env::var("WINARCHY_APPLET_DISK")
+    let number = std::env::var("ILLIUM_APPLET_DISK")
         .unwrap_or_else(|_| "0".into())
         .parse::<u32>()
         .ok()

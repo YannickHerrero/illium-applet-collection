@@ -7,7 +7,7 @@ fn work_day_setting(value: Option<&str>) -> Result<bool, String> {
     match value {
         None | Some("false") => Ok(false),
         Some("true") => Ok(true),
-        _ => Err("WINARCHY_APPLET_WORK_DAY must be true or false".into()),
+        _ => Err("ILLIUM_APPLET_WORK_DAY must be true or false".into()),
     }
 }
 
@@ -18,17 +18,17 @@ fn run() -> Result<(), String> {
         return Err("Expected one action argument".into());
     }
     let action = args.first().map(String::as_str).unwrap_or("refresh");
-    let dir = match std::env::var_os("WINARCHY_APPLET_STATE_DIR") {
+    let dir = match std::env::var_os("ILLIUM_APPLET_STATE_DIR") {
         Some(path) => std::path::PathBuf::from(path),
         None => std::path::PathBuf::from(
             std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA is missing")?,
         )
-        .join("Winarchy/winagotchi"),
+        .join("Illium/illigotchi"),
     };
     if !dir.is_absolute() {
         return Err("State directory must be absolute".into());
     }
-    let work_day = work_day_setting(std::env::var("WINARCHY_APPLET_WORK_DAY").ok().as_deref())?;
+    let work_day = work_day_setting(std::env::var("ILLIUM_APPLET_WORK_DAY").ok().as_deref())?;
     let _lock = storage::lock(&dir)?;
     let (session, now) = win::clock()?;
     let mut pet = storage::load(&dir)?;
@@ -55,7 +55,7 @@ fn work_day_config_values() {
 
 fn main() {
     if let Err(error) = run() {
-        eprintln!("Winagotchi: {error}");
+        eprintln!("Illigotchi: {error}");
         std::process::exit(1);
     }
 }

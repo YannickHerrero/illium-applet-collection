@@ -51,7 +51,7 @@ def atomic_write(path, data):
 
 def install(windows_home, config_home, claude_home, local_home):
     target = config_home / 'applets/claude-usage'
-    runtime = local_home / '.local/share/winarchy-applets/claude-usage'
+    runtime = local_home / '.local/share/illium-applets/claude-usage'
     settings_path = claude_home / 'settings.json'
     bar_path = config_home / 'bar.toml'
     if target.exists() or runtime.exists():
@@ -67,16 +67,16 @@ def install(windows_home, config_home, claude_home, local_home):
     delegate = statusline.get('command', '')
     if not isinstance(delegate, str):
         raise ValueError('Existing statusline command must be a string')
-    cache = windows_home / 'AppData/Local/Winarchy/cache/claude-usage/snapshot.json'
+    cache = windows_home / 'AppData/Local/Illium/cache/claude-usage/snapshot.json'
     if cache.resolve().is_relative_to(config_home.resolve()):
-        raise ValueError('The quota cache must be outside Winarchy configuration')
+        raise ValueError('The quota cache must be outside Illium configuration')
     new_bar = patched_bar(original_bar)
     command = shlex.join(['python3', str(runtime / 'bridge.py'), '--config', str(runtime / 'bridge.json')])
     settings['statusLine'] = dict(statusline, type='command', command=command)
     new_settings = (json.dumps(settings, indent=2, ensure_ascii=False) + '\n').encode()
     bridge_config = (json.dumps({'cache': str(cache), 'delegate': delegate, 'fable_probe': True, 'claude': shutil.which('claude') or 'claude'}, indent=2) + '\n').encode()
-    # Backups are private, outside Git and outside the watched Winarchy configuration.
-    backup_root = local_home / '.local/state/winarchy-applet-collection/backups'
+    # Backups are private, outside Git and outside the watched Illium configuration.
+    backup_root = local_home / '.local/state/illium-applet-collection/backups'
     backup_root.mkdir(parents=True, exist_ok=True)
     backup = Path(tempfile.mkdtemp(prefix=datetime.datetime.now().strftime('%Y%m%d-%H%M%S-'), dir=backup_root))
     (backup / 'claude-settings.json').write_bytes(original_settings)
@@ -118,12 +118,12 @@ def install(windows_home, config_home, claude_home, local_home):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--windows-home', type=Path, required=True, help='WSL-visible Windows profile, e.g. /mnt/c/Users/Name')
-    parser.add_argument('--config-home', type=Path, help='WSL-visible WINARCHY_CONFIG_HOME override, if used')
+    parser.add_argument('--config-home', type=Path, help='WSL-visible ILLIUM_CONFIG_HOME override, if used')
     parser.add_argument('--claude-home', type=Path, default=Path(os.environ.get('CLAUDE_CONFIG_DIR', str(Path.home() / '.claude'))))
     args = parser.parse_args()
     os.umask(0o077)
     try:
-        result = install(args.windows_home, args.config_home or args.windows_home / '.config/winarchy', args.claude_home, Path.home())
+        result = install(args.windows_home, args.config_home or args.windows_home / '.config/illium', args.claude_home, Path.home())
     except (OSError, ValueError, TypeError) as error:
         parser.exit(1, f'{error}\n')
     print(json.dumps(result, indent=2))

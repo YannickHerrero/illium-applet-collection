@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--windows-home', required=True, type=Path)
 args = parser.parse_args()
 base = args.windows_home / 'AppData/Local/Temp'
-folder = Path(tempfile.mkdtemp(prefix='winarchy-agenda-test-', dir=base))
+folder = Path(tempfile.mkdtemp(prefix='illium-agenda-test-', dir=base))
 try:
     for source in ROOT.rglob('*.ps1'):
         destination = folder / source.relative_to(ROOT)
@@ -49,7 +49,7 @@ try:
     invoke('month 1')
     invoke('today')
     # Unknown provider proves one failed connection cannot discard the healthy source.
-    config_path = folder / 'Winarchy/calendar-agenda/connections.json'
+    config_path = folder / 'Illium/calendar-agenda/connections.json'
     config = json.loads(config_path.read_text(encoding='utf-8-sig'))
     config['connections'].append({'id': 'unavailable-test', 'name': 'Unavailable test', 'provider': 'unsupported', 'enabled': True})
     config_path.write_text(json.dumps(config), encoding='utf-8')

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install Winagotchi from WSL; no engine changes, services, or audio."""
+"""Install Illigotchi from WSL; no engine changes, services, or audio."""
 import argparse
 import json
 import os
@@ -13,7 +13,7 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parent
 FILES = ('applet.toml', 'view.slint', 'sprites.slint', 'README.md', 'LICENSE', 'SOURCES.md')
-NAME = 'winagotchi'
+NAME = 'illigotchi'
 
 
 def plan_bar(raw):
@@ -23,7 +23,7 @@ def plan_bar(raw):
     if any(not isinstance(v, list) or any(not isinstance(x, str) for x in v) for v in sections):
         raise ValueError('Bar sections must be arrays of module names')
     if any(NAME in section or 'omagotchi' in section for section in sections):
-        raise ValueError('Winagotchi or its old Omagotchi name is already in the bar; see migration instructions')
+        raise ValueError('Illigotchi or its old Omagotchi name is already in the bar; see migration instructions')
     if 'left' not in data:
         raise ValueError('bar.toml needs a left module array')
     # Parse TOML first, then only patch a simple single-line array. Compare
@@ -45,7 +45,7 @@ def plan_bar(raw):
 def atomic(path, data):
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.winagotchi-', delete=False) as file:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.illigotchi-', delete=False) as file:
             temporary = Path(file.name)
             file.write(data)
         os.replace(temporary, path)
@@ -59,9 +59,9 @@ def install(config, binary, windows_config, backup_root):
     bar = config / 'bar.toml'
     target = config / 'applets' / NAME
     if target.exists() or target.is_symlink():
-        raise ValueError('Existing Winagotchi will not be overwritten; back it up and upgrade manually')
+        raise ValueError('Existing Illigotchi will not be overwritten; back it up and upgrade manually')
     if (target.parent / 'omagotchi').exists():
-        raise ValueError('An old Omagotchi installation exists; migrate it with Winarchy stopped (see README)')
+        raise ValueError('An old Omagotchi installation exists; migrate it with Illium stopped (see README)')
     if bar.is_symlink() or not bar.is_file():
         raise ValueError('bar.toml must be an existing regular file')
     if target.parent.is_symlink():
@@ -80,7 +80,7 @@ def install(config, binary, windows_config, backup_root):
     native = PureWindowsPath(windows_config)
     if not native.is_absolute():
         raise ValueError('Windows configuration path must be absolute')
-    program = str(native / 'applets' / NAME / 'winagotchi.exe')
+    program = str(native / 'applets' / NAME / 'illigotchi.exe')
     manifest, count = re.subn(r'(?m)^command = .*$', lambda _: 'command = ' + json.dumps([program]),
                               (ROOT / 'applet.toml').read_text())
     if count != 1 or tomllib.loads(manifest)['command'] != [program]:
@@ -89,11 +89,11 @@ def install(config, binary, windows_config, backup_root):
     if backup_root.is_relative_to(config) or backup_root.is_relative_to(ROOT.parent):
         raise ValueError('Backups must be outside the configuration tree and this repository')
     backup_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    backup = Path(tempfile.mkdtemp(prefix='winagotchi-install-', dir=backup_root))
+    backup = Path(tempfile.mkdtemp(prefix='illigotchi-install-', dir=backup_root))
     (backup / 'bar.toml').write_bytes(original)
     (backup / 'bar.toml').chmod(0o600)
     # Publish a complete directory before adding its name to the bar.
-    stage = Path(tempfile.mkdtemp(prefix='.winagotchi-stage-', dir=config.parent))
+    stage = Path(tempfile.mkdtemp(prefix='.illigotchi-stage-', dir=config.parent))
     published = False
     try:
         for name in FILES:
@@ -102,7 +102,7 @@ def install(config, binary, windows_config, backup_root):
             shutil.copyfile(icon, stage / icon.name)
         shutil.copytree(ROOT / 'assets', stage / 'assets')
         (stage / 'applet.toml').write_text(manifest, encoding='utf-8')
-        (stage / 'winagotchi.exe').write_bytes(image)
+        (stage / 'illigotchi.exe').write_bytes(image)
         if bar.read_bytes() != original or target.exists() or target.is_symlink():
             raise ValueError('Configuration changed during installation; review it and retry')
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -124,15 +124,15 @@ def install(config, binary, windows_config, backup_root):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--config', type=Path, help='Winarchy configuration directory, WSL spelling')
-    group.add_argument('--windows-home', type=Path, help='WSL Windows profile; uses .config/winarchy')
-    parser.add_argument('--binary', type=Path, default=ROOT / 'provider/target/x86_64-pc-windows-msvc/release/winagotchi.exe')
+    group.add_argument('--config', type=Path, help='Illium configuration directory, WSL spelling')
+    group.add_argument('--windows-home', type=Path, help='WSL Windows profile; uses .config/illium')
+    parser.add_argument('--binary', type=Path, default=ROOT / 'provider/target/x86_64-pc-windows-msvc/release/illigotchi.exe')
     parser.add_argument('--windows-config', help='Native Windows spelling; defaults to wslpath -w')
-    parser.add_argument('--backup-root', type=Path, default=Path.home() / '.local/state/winarchy-applet-collection/backups')
+    parser.add_argument('--backup-root', type=Path, default=Path.home() / '.local/state/illium-applet-collection/backups')
     args = parser.parse_args()
     os.umask(0o077)
     try:
-        config = args.config or args.windows_home / '.config/winarchy'
+        config = args.config or args.windows_home / '.config/illium'
         native = args.windows_config or subprocess.check_output(['wslpath', '-w', str(config.resolve())], text=True).strip()
         result = install(config, args.binary, native, args.backup_root)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:

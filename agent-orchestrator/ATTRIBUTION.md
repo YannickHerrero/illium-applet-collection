@@ -14,4 +14,4 @@
   separate license grant from the artist.
 
 No OmaPets hook installers, transcript scanning, QML or platform scripts are
-used. Winarchy renders the PNG directly, without ImageMagick or network access.
+used. Illium renders the PNG directly, without ImageMagick or network access.

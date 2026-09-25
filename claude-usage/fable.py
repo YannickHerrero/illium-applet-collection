@@ -67,7 +67,7 @@ def query(claude, timeout=TIMEOUT):
                '--verbose', '--no-session-persistence', '--setting-sources', '',
                '--settings', '{"disableAllHooks":true,"remoteControlAtStartup":false}',
                '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}', '--tools', '']
-    with tempfile.TemporaryDirectory(prefix='winarchy-quota-') as directory:
+    with tempfile.TemporaryDirectory(prefix='illium-quota-') as directory:
         process = subprocess.Popen(command, cwd=directory, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                    stderr=subprocess.DEVNULL, start_new_session=True,
                                    # CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC must stay unset: it also

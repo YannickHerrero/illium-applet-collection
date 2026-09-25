@@ -20,7 +20,7 @@ class InstallTests(unittest.TestCase):
         self.binary=self.root/'collector.exe';self.binary.write_bytes(image)
         self.backups=self.root/'backups'
     def run_install(self):
-        return install.install(self.config,self.binary,r'C:\Users\Test User\.config\winarchy',self.backups)
+        return install.install(self.config,self.binary,r'C:\Users\Test User\.config\illium',self.backups)
     def test_preserves_other_modules_comments_and_windows_path(self):
         result=self.run_install()
         self.assertEqual(tomllib.loads(self.bar.read_text())['right'],['activity-monitor','wifi','claude-usage'])
@@ -28,7 +28,7 @@ class InstallTests(unittest.TestCase):
         self.assertIn(b'clock_format = "%A %d %b"\r\n',self.bar.read_bytes())
         self.assertEqual((Path(result['backup'])/'bar.toml').read_bytes(),self.original)
         app=Path(result['applet']);manifest=tomllib.loads((app/'applet.toml').read_text())
-        self.assertEqual(manifest['command'],[r'C:\Users\Test User\.config\winarchy\applets\activity-monitor\activity-monitor.exe'])
+        self.assertEqual(manifest['command'],[r'C:\Users\Test User\.config\illium\applets\activity-monitor\activity-monitor.exe'])
         self.assertEqual((app/'activity-monitor.exe').read_bytes(),self.binary.read_bytes())
     def test_replaces_across_sections_once(self):
         raw=b'left = ["memory", "clock"]\nright = ["cpu", "wifi"]\n'

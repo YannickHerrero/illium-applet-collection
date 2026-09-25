@@ -69,11 +69,11 @@ fn run() -> Result<Value, Box<dyn std::error::Error>> {
         return Ok(win::diagnose());
     }
     let action = Action::parse(arg.as_deref())?;
-    let directory = if let Some(path) = std::env::var_os("WINARCHY_APPLET_CACHE_PATH") {
+    let directory = if let Some(path) = std::env::var_os("ILLIUM_APPLET_CACHE_PATH") {
         PathBuf::from(path)
     } else {
         PathBuf::from(std::env::var_os("LOCALAPPDATA").ok_or("LOCALAPPDATA unavailable")?)
-            .join("Winarchy/cache/activity-monitor")
+            .join("Illium/cache/activity-monitor")
     };
     fs::create_dir_all(&directory)?;
     let lock = OpenOptions::new()

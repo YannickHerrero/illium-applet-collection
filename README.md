@@ -1,6 +1,6 @@
-# Winarchy applet collection
+# Illium applet collection
 
-Optional, independently installed applets for [Winarchy](https://github.com/YannickHerrero/winarchy). This repository does not modify or vendor the Winarchy engine.
+Optional, independently installed applets for [Illium](https://github.com/YannickHerrero/illium). This repository does not modify or vendor the Illium engine.
 
 ## Calendar Agenda
 
@@ -21,26 +21,26 @@ python3 -B calendar-agenda/install.py --windows-home /mnt/c/Users/<WindowsUser>
 Build its Windows collector, then use **its separate installer**:
 
 ```sh
-python3 activity-monitor/install.py --config /mnt/c/Users/<WindowsUser>/.config/winarchy
+python3 activity-monitor/install.py --config /mnt/c/Users/<WindowsUser>/.config/illium
 ```
 
 It backs up `bar.toml`, replaces only CPU/memory entries and leaves Claude's relay/settings alone. See its README for precise metric scopes, measured startup overhead and safe rollback instructions.
 
-## Winagotchi
+## Illigotchi
 
-[`winagotchi/`](winagotchi/README.md) brings [SLcode777's Omagotchi](https://github.com/SLcode777/omagotchi) to Winarchy as an **entirely silent**, themed pixel-pet room: growth, feeding, mouse scrubbing, cuddles, room play, sleep and generations. A standalone Rust provider saves outside the watched config tree and excludes offline/sleep time. No engine changes or desktop roaming overlay.
+[`illigotchi/`](illigotchi/README.md) brings [SLcode777's Omagotchi](https://github.com/SLcode777/omagotchi) to Illium as an **entirely silent**, themed pixel-pet room: growth, feeding, mouse scrubbing, cuddles, room play, sleep and generations. A standalone Rust provider saves outside the watched config tree and excludes offline/sleep time. No engine changes or desktop roaming overlay.
 
 Build its Windows provider, then install independently:
 
 ```sh
-python3 -B winagotchi/install.py --windows-home /mnt/c/Users/<WindowsUser>
+python3 -B illigotchi/install.py --windows-home /mnt/c/Users/<WindowsUser>
 ```
 
-The installer backs up the bar and places `winagotchi` before the workspaces without replacing existing modules. This position requires a Winarchy build that honors the workspace group's configured order. See its README for build, care, tests and rollback instructions.
+The installer backs up the bar and places `illigotchi` before the workspaces without replacing existing modules. This position requires an Illium build that honors the workspace group's configured order. See its README for build, care, tests and rollback instructions.
 
 ## Herdr
 
-[`herdr/`](herdr/README.md) shows the [herdr](https://herdr.dev) servers running in WSL and the agents inside them: which one needs an answer, which one finished unseen, which ones are working. Read-only: no session is focused, stopped or deleted from the popup. A bash script in WSL joins `herdr session list` and one `api snapshot` per server; Winarchy runs it through `wsl.exe`.
+[`herdr/`](herdr/README.md) shows the [herdr](https://herdr.dev) servers running in WSL and the agents inside them: which one needs an answer, which one finished unseen, which ones are working. Read-only: no session is focused, stopped or deleted from the popup. A bash script in WSL joins `herdr session list` and one `api snapshot` per server; Illium runs it through `wsl.exe`.
 
 ```sh
 python3 -B herdr/install.py --windows-home /mnt/c/Users/<WindowsUser>
@@ -48,7 +48,7 @@ python3 -B herdr/install.py --windows-home /mnt/c/Users/<WindowsUser>
 
 ## Agent Orchestrator
 
-[`agent-orchestrator/`](agent-orchestrator/README.md) lists every coding agent visible from WSL in one popup: the agents in [herdr](https://herdr.dev) panes and the [Multica](https://multica.ai) agents currently working, with filter tabs by state and a bar badge for the agents that need you or are working. Read-only, after [agent-orchestr](https://github.com/meviusisback/agent-orchestr) for Omarchy. A Python collector in WSL reads the herdr sockets and the local Multica server's REST API; Winarchy runs it through `wsl.exe`.
+[`agent-orchestrator/`](agent-orchestrator/README.md) lists every coding agent visible from WSL in one popup: the agents in [herdr](https://herdr.dev) panes and the [Multica](https://multica.ai) agents currently working, with filter tabs by state and a bar badge for the agents that need you or are working. Read-only, after [agent-orchestr](https://github.com/meviusisback/agent-orchestr) for Omarchy. A Python collector in WSL reads the herdr sockets and the local Multica server's REST API; Illium runs it through `wsl.exe`.
 
 ```sh
 python3 -B agent-orchestrator/install.py --windows-home /mnt/c/Users/<WindowsUser>
@@ -56,7 +56,7 @@ python3 -B agent-orchestrator/install.py --windows-home /mnt/c/Users/<WindowsUse
 
 ## Dictation
 
-[`dictate/`](dictate/README.md) is a bar switch for the speech model behind Winarchy's hold-to-talk dictation (`winarchy-dictate.exe`): it shows whether the model is in memory and loads or unloads it, so its roughly 700 MB only stay resident during sessions where you dictate. PowerShell provider, no data of yours is read.
+[`dictate/`](dictate/README.md) is a bar switch for the speech model behind Illium's hold-to-talk dictation (`illium-dictate.exe`): it shows whether the model is in memory and loads or unloads it, so its roughly 700 MB only stay resident during sessions where you dictate. PowerShell provider, no data of yours is read.
 
 ```sh
 python3 -B dictate/install.py --windows-home /mnt/c/Users/<WindowsUser>
@@ -88,16 +88,16 @@ See [Claude usage setup and limitations](claude-usage/README.md). From WSL:
 python3 install.py --windows-home /mnt/c/Users/<WindowsUser>
 ```
 
-This preserves the current statusline, backs up settings, and adds the applet to the installed Windows bar. It never modifies the Winarchy source repository.
+This preserves the current statusline, backs up settings, and adds the applet to the installed Windows bar. It never modifies the Illium source repository.
 
 ## Development
 
-Claude Usage uses Python 3.11+ (standard library) for its WSL relay/setup and Windows PowerShell 5.1 for its provider. Activity Monitor and Winagotchi use Rust 1.89+ to build standalone Windows executables, with Python only for installation. Herdr uses bash 5 and jq in WSL; Agent Orchestrator uses Python 3.11+ (standard library) in WSL; Dictation and Todo use Windows PowerShell 5.1. All use Slint 1.12.1 views. Keep all generated data and private settings out of Git.
+Claude Usage uses Python 3.11+ (standard library) for its WSL relay/setup and Windows PowerShell 5.1 for its provider. Activity Monitor and Illigotchi use Rust 1.89+ to build standalone Windows executables, with Python only for installation. Herdr uses bash 5 and jq in WSL; Agent Orchestrator uses Python 3.11+ (standard library) in WSL; Dictation and Todo use Windows PowerShell 5.1. All use Slint 1.12.1 views. Keep all generated data and private settings out of Git.
 
 Atomic commits must use `YannickHerrero <yannick.herrero@proton.me>`. No remote or publication is configured automatically.
 
 ## Attribution
 
-Independent, unofficial integration; not affiliated with Anthropic. Claude is an Anthropic trademark. The Claude silhouette comes from Simple Icons (CC0), whose declared source is claude.ai. See [icon provenance and trademark notice](claude-usage/ICON-SOURCE.md). Its color follows the active Winarchy theme.
+Independent, unofficial integration; not affiliated with Anthropic. Claude is an Anthropic trademark. The Claude silhouette comes from Simple Icons (CC0), whose declared source is claude.ai. See [icon provenance and trademark notice](claude-usage/ICON-SOURCE.md). Its color follows the active Illium theme.
 
 Reference: https://code.claude.com/docs/en/statusline#rate-limit-usage

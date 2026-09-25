@@ -1,9 +1,9 @@
 #!/bin/bash
 # herdr-agents.sh: every herdr session and the agents inside it, as one JSON
-# object for the Winarchy view. Read-only: it never focuses, stops or deletes
-# anything, and it ignores any action argument Winarchy appends.
+# object for the Illium view. Read-only: it never focuses, stops or deletes
+# anything, and it ignores any action argument Illium appends.
 #
-# Winarchy runs it through `wsl.exe`, so it starts from a non-interactive shell
+# Illium runs it through `wsl.exe`, so it starts from a non-interactive shell
 # without the user's PATH additions; herdr's default install location is added
 # here.
 set -euo pipefail

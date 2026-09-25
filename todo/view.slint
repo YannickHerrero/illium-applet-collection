@@ -102,7 +102,7 @@ export component View inherits Window {
     // Every action starts a PowerShell run of its own, so the list answers the
     // click first and the provider afterwards. The overlay below holds one
     // intent per kind, and the provider's answer replaces all of it.
-    // in-out so tests/preview.py can render an in-flight state; Winarchy only
+    // in-out so tests/preview.py can render an in-flight state; Illium only
     // ever writes `data`.
     in-out property <string> pending-toggle: "";
     in-out property <string> pending-delete: "";

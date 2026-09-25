@@ -125,7 +125,7 @@ impl State {
         self.advance(session, now);
     }
     /// The clock is Windows unbiased uptime (excludes sleep/hibernation).
-    /// Parent PID + creation time identifies a Winarchy run. Gaps over 90s
+    /// Parent PID + creation time identifies an Illium run. Gaps over 90s
     /// are treated as absence, not catch-up; normal manifest polling is 30s.
     pub fn advance(&mut self, session: &str, now: u64) {
         let delta = now.checked_sub(self.last_ms).filter(|d| *d <= 90_000);
