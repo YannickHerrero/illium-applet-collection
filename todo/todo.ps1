@@ -71,6 +71,12 @@ function Invoke-Action($store, [string]$verb, [string]$argument) {
             $task.done = -not $task.done
             return 'changed'
         }
+        'copy' {
+            $task = @($store.tasks | Where-Object { $_.id -eq $argument }) | Select-Object -First 1
+            if (-not $task) { return '' }
+            Set-Clipboard -Value $task.text
+            return ''
+        }
         'delete' {
             $remaining = @($store.tasks | Where-Object { $_.id -ne $argument })
             if ($remaining.Count -eq $store.tasks.Count) { return '' }

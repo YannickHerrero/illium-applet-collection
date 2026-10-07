@@ -33,6 +33,7 @@ component Row inherits Rectangle {
     in property <color> overlay;
     callback toggled();
     callback deleted();
+    callback copied();
     // Let every task grow to fit its full text.
     height: shown ? max(36px, label.preferred-height + 16px) : 0px;
     visible: shown; clip: true;
@@ -72,6 +73,11 @@ component Row inherits Rectangle {
                 // A single strike-through cannot follow wrapped lines.
                 background: root.muted; visible: root.done && root.height <= 36px;
             }
+        }
+        IconButton {
+            width: 26px; source: @image-url("copy.svg"); size: 15px;
+            tint: root.muted; hover-tint: root.accent; enabled: !root.ghost;
+            clicked => { root.copied(); }
         }
         IconButton {
             width: 26px; source: @image-url("trash.svg"); size: 15px;
@@ -237,6 +243,7 @@ export component View inherits Window {
                         bg: root.bg; fg: root.fg; muted: root.muted; accent: root.accent; surface: root.surface; overlay: root.overlay;
                         toggled => { root.toggle(task); }
                         deleted => { root.remove(task); }
+                        copied => { root.send("copy", task.id); }
                     }
                     if root.pending-add != "": Row {
                         text: root.pending-add; ghost: true;

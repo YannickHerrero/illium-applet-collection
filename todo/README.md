@@ -8,7 +8,7 @@ The bar icon carries the number of tasks still open, and nothing at all once the
 
 **A text field.** Type and press Enter, or click `+`. It takes the keyboard focus when the popup opens, so you can add a task without touching the mouse.
 
-**The list.** Clicking the box ticks a task off, which mutes it and crosses it out; the bin on the right deletes it. The list scrolls and keeps the order you added tasks in.
+**The list.** Task text is always displayed in full, wrapping onto multiple lines as needed. Clicking the box ticks a task off and mutes it (single-line tasks are also crossed out). The copy button on the right copies the full text to the Windows clipboard; the bin deletes the task. The list scrolls and keeps the order you added tasks in.
 
 **A Clear completed footer**, shown only while something is ticked off, with the count of completed tasks facing it.
 
@@ -16,7 +16,7 @@ Colors come from the active Illium theme, so switching theme repaints the applet
 
 ## How it works
 
-The provider owns the list and prints all of it on every run. The view asks it to `add`, `toggle`, `delete` or `clear-completed`, and Illium passes those arguments as a JSON array, so a task may hold quotes, brackets or any Unicode without an escaping convention of its own.
+The provider owns the list and prints all of it on every run. The view asks it to `add`, `toggle`, `copy`, `delete` or `clear-completed`, and Illium passes those arguments as a JSON array, so a task may hold quotes, brackets or any Unicode without an escaping convention of its own.
 
 Tasks live in `%LOCALAPPDATA%\illium-applet-collection\todo\tasks.json`, outside Illium's watched configuration tree, so writing one never triggers a configuration reload. The provider writes the whole list to a temporary file beside it, then moves that file over the previous one, so an interrupted write leaves the old list intact. The file is UTF-8 without a BOM; edit it by hand if you like, while the popup is closed.
 
@@ -49,4 +49,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File todo/tests/provider.ps1
 xvfb-run -a python3 todo/tests/preview.py /tmp/todo-preview   # optional, renders the view
 ```
 
-The preview renders six fixtures, one of them mid-flight with a ticked, a deleted and a typed task, since the optimistic state is otherwise only visible on the desktop. The provider fixtures cover action parsing, the list mutations, the store round-trip (Unicode, no BOM, no leftover temporary file, a corrupt file left alone, identifiers never reused) and a whole-script run started the way Illium starts it.
+The preview renders six fixtures, one of them mid-flight with a ticked, a deleted and a typed task, since the optimistic state is otherwise only visible on the desktop. The provider fixtures cover action parsing, copying text with a mocked clipboard, the list mutations, the store round-trip (Unicode, no BOM, no leftover temporary file, a corrupt file left alone, identifiers never reused) and a whole-script run started the way Illium starts it.

@@ -11,7 +11,7 @@ import tempfile
 import tomllib
 
 ROOT = Path(__file__).resolve().parent
-FILES = ('applet.toml', 'view.slint', 'icon.svg', 'check.svg', 'plus.svg', 'trash.svg', 'todo.ps1', 'README.md')
+FILES = ('applet.toml', 'view.slint', 'icon.svg', 'check.svg', 'plus.svg', 'trash.svg', 'copy.svg', 'todo.ps1', 'README.md')
 NAME = 'todo'
 
 

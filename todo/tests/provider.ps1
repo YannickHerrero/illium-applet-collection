@@ -49,6 +49,26 @@ Assert-Equal (Build-Data $store '').remaining 1 'remaining after clear'
 Assert-Equal (Invoke-Action $store 'toggle' '1') 'changed' 'toggle the last one'
 Assert-Equal (Build-Data $store '').remaining 0 'nothing left open'
 
+# Mock the clipboard so fixtures never overwrite the user's clipboard.
+$copyStore = New-Store
+$copyText = 'Écrire — 日本語 [notes], "today"'
+[void](Invoke-Action $copyStore 'add' $copyText)
+$beforeCopy = ConvertTo-Json -InputObject $copyStore -Depth 5 -Compress
+$script:copiedText = $null
+function Set-Clipboard { param([string]$Value) $script:copiedText = $Value }
+try {
+    Assert-Equal (Invoke-Action $copyStore 'copy' '1') '' 'copy does not request a store write'
+    Assert-Equal $script:copiedText $copyText 'copy preserves the full text'
+    Assert-Equal (ConvertTo-Json -InputObject $copyStore -Depth 5 -Compress) $beforeCopy 'copy leaves the store unchanged'
+    $script:copiedText = $null
+    Assert-Equal (Invoke-Action $copyStore 'copy' '99') '' 'unknown copy is ignored'
+    Assert-Equal $script:copiedText $null 'unknown copy leaves the clipboard unchanged'
+    function Set-Clipboard { param([string]$Value) throw 'Clipboard unavailable' }
+    Assert-Throws { Invoke-Action $copyStore 'copy' '1' } 'clipboard failure is reported'
+} finally {
+    Remove-Item Function:\Set-Clipboard
+}
+
 $root = Join-Path ([IO.Path]::GetTempPath()) ("illium-todo-tests-" + [Guid]::NewGuid().ToString('N'))
 try {
     $path = Join-Path $root 'nested\tasks.json'
