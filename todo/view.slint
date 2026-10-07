@@ -33,7 +33,7 @@ component Row inherits Rectangle {
     in property <color> overlay;
     callback toggled();
     callback deleted();
-    // Keep the compact list at rest; hovering reveals the entire task.
+    // Let every task grow to fit its full text.
     height: shown ? max(36px, label.preferred-height + 16px) : 0px;
     visible: shown; clip: true;
     opacity: ghost ? 0.5 : 1;
@@ -62,8 +62,7 @@ component Row inherits Rectangle {
                 x: 0; width: 100%;
                 text: root.text; color: root.done ? root.muted : root.fg;
                 font-size: 13px; vertical-alignment: center;
-                wrap: hover.has-hover ? word-wrap : no-wrap;
-                overflow: hover.has-hover ? clip : elide;
+                wrap: word-wrap;
             }
             // Slint's Text has no strike-through, so a completed task is
             // crossed out with a line as wide as the glyphs themselves.
