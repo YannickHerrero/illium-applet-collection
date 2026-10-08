@@ -70,6 +70,15 @@ python3 -B dictate/install.py --windows-home /mnt/c/Users/<WindowsUser>
 python3 -B todo/install.py --windows-home /mnt/c/Users/<WindowsUser>
 ```
 
+## Solaris
+
+[`solaris/`](solaris/README.md) plays [Solaris](https://github.com/YannickHerrero/solaris), the terminal idle game, from the bar: a live energy counter, the sun to click, producers and upgrades to buy. It shares the save of `solaris.exe` on Windows; a lock keeps the applet read-only while the terminal game runs. A native Windows provider built on Solaris's own game code runs every minute and on each action, so the game keeps going while Illium runs.
+
+```sh
+cargo xwin build --release --target x86_64-pc-windows-msvc --manifest-path solaris/provider/Cargo.toml
+python3 -B solaris/install.py --windows-home /mnt/c/Users/<WindowsUser>
+```
+
 ## Claude usage
 
 `claude-usage/` displays Claude Code's **account quota**, not context-window fullness or locally estimated token costs. The initial data source is the official Claude Code statusline JSON (`rate_limits.five_hour` and `rate_limits.seven_day`).

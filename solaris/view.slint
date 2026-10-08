@@ -1,0 +1,291 @@
+struct ProducerRow { id: string, name: string, owned: string, rate: string, cost-1: string, cost-10: string, cost-max: string, max: string, cost-1-scaled: float, cost-10-scaled: float }
+struct UpgradeRow { id: string, name: string, description: string, cost: string, cost-scaled: float }
+struct Data {
+    in-terminal: bool, bar-label: string,
+    energy-scaled: float, unit: string, eps-scaled: float, click-scaled: float, eps: string, click: string,
+    producers: [ProducerRow], upgrades: [UpgradeRow], upgrades-available: int,
+    achievements: string, achievement: string, chips: string, ascension-chips: string,
+}
+
+component Pill inherits Rectangle {
+    in property <string> text;
+    in property <bool> selected;
+    in property <color> tint;
+    in property <color> fg;
+    callback clicked();
+    height: 26px; border-radius: 13px;
+    min-width: label.preferred-width + 22px;
+    background: selected ? tint.with-alpha(0.18) : fg.with-alpha(0.05);
+    border-width: 1px; border-color: selected ? tint : transparent;
+    label := Text {
+        text: root.text; color: root.selected ? root.tint : root.fg;
+        font-size: 12px; font-weight: root.selected ? 600 : 400;
+        horizontal-alignment: center; vertical-alignment: center;
+    }
+    TouchArea { clicked => { root.clicked(); } }
+}
+
+component CostButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled;
+    in property <color> tint;
+    in property <color> fg;
+    in property <color> bg;
+    in property <color> muted;
+    callback clicked();
+    width: max(84px, label.preferred-width + 20px); height: 28px; border-radius: 6px;
+    background: !enabled ? fg.with-alpha(0.05) : touch.pressed ? tint.darker(0.2) : touch.has-hover ? tint.brighter(0.1) : tint;
+    label := Text {
+        text: root.text; color: root.enabled ? root.bg : root.muted;
+        font-size: 12px; font-weight: 600;
+        horizontal-alignment: center; vertical-alignment: center;
+    }
+    touch := TouchArea { enabled: root.enabled; clicked => { root.clicked(); } }
+}
+
+export component View inherits Window {
+    no-frame: true;
+    in property <length> popup-width: 420px;
+    in property <length> popup-height: 620px;
+    width: popup-width; height: popup-height;
+    in property <color> bg: #1e1e2e;
+    in property <color> surface: #313244;
+    in property <color> overlay: #45475a;
+    in property <color> fg: #cdd6f4;
+    in property <color> muted: #a6adc8;
+    in property <color> accent: #cba6f7;
+    in property <color> yellow: #f9e2af;
+    in property <color> red: #f38ba8;
+    in property <Data> data;
+    in property <bool> busy: false;
+    in property <bool> has-data: false;
+    in property <bool> open: false;
+    in property <string> provider-error;
+    callback action(string);
+    callback completed();
+
+    in-out property <string> tab: "producers";
+    in-out property <string> amount: "1";
+
+    // Every provider run is a wsl.exe process, so the counter keeps going
+    // locally and clicks are sent in batches; a snapshot replaces both.
+    property <int> ticks: 0;
+    property <int> pending-clicks: 0;
+    property <int> sent-clicks: 0;
+    property <int> outstanding: 0;
+    property <float> shown-energy: root.data.energy-scaled + root.data.eps-scaled * root.ticks / 10
+        + (root.pending-clicks + root.sent-clicks) * root.data.click-scaled;
+    property <bool> playing: root.has-data && !root.data.in-terminal;
+
+    pure function number(value: float) -> string {
+        if (root.data.unit == "") {
+            return value < 10 ? "\{floor(value * 10) / 10}" : "\{floor(value)}";
+        }
+        return "\{floor(value * 100) / 100}\{root.data.unit}";
+    }
+    function send(verb: string) {
+        root.outstanding += 1;
+        root.action(verb);
+    }
+    // Buttons follow the live counter, so the energy mined by the clicks not
+    // sent yet must reach the provider before the purchase does.
+    function buy(verb: string) {
+        if (root.pending-clicks > 0) {
+            root.sent-clicks += root.pending-clicks;
+            root.send("mine \{root.pending-clicks}");
+            root.pending-clicks = 0;
+        }
+        root.send(verb);
+    }
+
+    changed open => {
+        if (open && !busy) { root.send("refresh"); }
+    }
+    completed => {
+        root.ticks = 0;
+        root.outstanding = max(0, root.outstanding - 1);
+        if (root.outstanding == 0) { root.sent-clicks = 0; }
+    }
+
+    Timer {
+        interval: 100ms; running: root.open && root.playing;
+        triggered => { root.ticks += 1; }
+    }
+    Timer {
+        interval: 500ms; running: root.open && root.pending-clicks > 0;
+        triggered => {
+            root.sent-clicks += root.pending-clicks;
+            root.send("mine \{root.pending-clicks}");
+            root.pending-clicks = 0;
+        }
+    }
+    Timer {
+        interval: 3s; running: root.open && root.playing;
+        triggered => {
+            if (!root.busy && root.pending-clicks == 0) { root.send("refresh"); }
+        }
+    }
+
+    background: bg;
+    Rectangle {
+        border-width: 1px; border-color: root.accent;
+        VerticalLayout {
+            padding: 18px; spacing: 12px;
+            HorizontalLayout {
+                height: 32px; spacing: 12px;
+                Image { source: @image-url("icon.svg"); width: 24px; height: 24px; colorize: root.yellow; }
+                VerticalLayout {
+                    horizontal-stretch: 1; spacing: 2px;
+                    Text { text: "Solaris"; color: root.fg; font-size: 16px; font-weight: 600; }
+                    Text {
+                        text: root.playing ? "Achievements \{root.data.achievements} · Stellar chips \{root.data.chips}" : "";
+                        color: root.muted; font-size: 11px;
+                    }
+                }
+            }
+
+            if !root.has-data: Text {
+                vertical-stretch: 1;
+                text: root.provider-error == "" ? "Loading your game…" : ""; color: root.muted; font-size: 13px;
+                horizontal-alignment: center; vertical-alignment: center;
+            }
+
+            if root.has-data && root.data.in-terminal: VerticalLayout {
+                vertical-stretch: 1; alignment: center; spacing: 6px;
+                Text {
+                    text: "Solaris is open in a terminal";
+                    color: root.fg; font-size: 14px; font-weight: 600; horizontal-alignment: center;
+                }
+                Text {
+                    text: "The game picks up here once you quit it there.";
+                    color: root.muted; font-size: 12px; horizontal-alignment: center; wrap: word-wrap;
+                }
+            }
+
+            if root.playing: HorizontalLayout {
+                height: 84px; spacing: 14px;
+                VerticalLayout {
+                    horizontal-stretch: 1; alignment: center; spacing: 4px;
+                    Text { text: root.number(root.shown-energy); color: root.fg; font-size: 30px; font-weight: 700; }
+                    Text { text: "\{root.data.eps} · \{root.data.click} per click"; color: root.muted; font-size: 12px; }
+                }
+                Rectangle {
+                    width: 84px;
+                    sun := Rectangle {
+                        width: sun-touch.pressed ? 70px : 78px; height: self.width;
+                        animate width { duration: 80ms; }
+                        border-radius: self.width / 2;
+                        background: sun-touch.has-hover ? root.yellow.with-alpha(0.22) : root.yellow.with-alpha(0.14);
+                        border-width: 2px; border-color: root.yellow;
+                        Image {
+                            source: @image-url("icon.svg"); width: parent.width * 0.6; height: self.width;
+                            colorize: root.yellow;
+                        }
+                    }
+                    sun-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.pending-clicks += 1; }
+                    }
+                }
+            }
+
+            if root.playing: HorizontalLayout {
+                height: 26px; spacing: 6px;
+                Pill {
+                    text: "Producers"; selected: root.tab == "producers"; tint: root.accent; fg: root.fg;
+                    clicked => { root.tab = "producers"; }
+                }
+                Pill {
+                    text: "Upgrades \{root.data.upgrades-available}"; selected: root.tab == "upgrades"; tint: root.accent; fg: root.fg;
+                    clicked => { root.tab = "upgrades"; }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                Pill {
+                    text: "×1"; visible: root.tab == "producers"; selected: root.amount == "1"; tint: root.accent; fg: root.fg;
+                    clicked => { root.amount = "1"; }
+                }
+                Pill {
+                    text: "×10"; visible: root.tab == "producers"; selected: root.amount == "10"; tint: root.accent; fg: root.fg;
+                    clicked => { root.amount = "10"; }
+                }
+                Pill {
+                    text: "Max"; visible: root.tab == "producers"; selected: root.amount == "max"; tint: root.accent; fg: root.fg;
+                    clicked => { root.amount = "max"; }
+                }
+            }
+
+            if root.playing: Flickable {
+                vertical-stretch: 1;
+                viewport-height: max(self.height, root.tab == "producers" ? producer-list.preferred-height : upgrade-list.preferred-height);
+                producer-list := VerticalLayout {
+                    alignment: start; spacing: 4px;
+                    visible: root.tab == "producers";
+                    for p in root.data.producers: Rectangle {
+                        height: 46px; border-radius: 6px; background: root.surface.with-alpha(0.45);
+                        HorizontalLayout {
+                            padding-left: 10px; padding-right: 8px; spacing: 10px;
+                            VerticalLayout {
+                                horizontal-stretch: 1; alignment: center; spacing: 2px;
+                                Text { text: "\{p.name}  ×\{p.owned}"; color: root.fg; font-size: 13px; overflow: elide; }
+                                Text { text: p.rate; color: root.muted; font-size: 11px; }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                CostButton {
+                                    text: root.amount == "1" ? p.cost-1 : root.amount == "10" ? p.cost-10 : p.max == "0" ? p.cost-1 : "\{p.max} for \{p.cost-max}";
+                                    enabled: root.shown-energy >= (root.amount == "10" ? p.cost-10-scaled : p.cost-1-scaled);
+                                    tint: root.accent; fg: root.fg; bg: root.bg; muted: root.muted;
+                                    clicked => { root.buy("buy \{p.id} \{root.amount}"); }
+                                }
+                            }
+                        }
+                    }
+                }
+                upgrade-list := VerticalLayout {
+                    alignment: start; spacing: 4px;
+                    visible: root.tab == "upgrades";
+                    for u in root.data.upgrades: Rectangle {
+                        height: max(46px, upgrade-text.preferred-height + 14px);
+                        border-radius: 6px; background: root.surface.with-alpha(0.45);
+                        HorizontalLayout {
+                            padding-left: 10px; padding-right: 8px; spacing: 10px;
+                            upgrade-text := VerticalLayout {
+                                horizontal-stretch: 1; alignment: center; spacing: 2px;
+                                Text { text: u.name; color: root.fg; font-size: 13px; overflow: elide; }
+                                Text { text: u.description; color: root.muted; font-size: 11px; wrap: word-wrap; }
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                CostButton {
+                                    text: u.cost; enabled: root.shown-energy >= u.cost-scaled;
+                                    tint: root.accent; fg: root.fg; bg: root.bg; muted: root.muted;
+                                    clicked => { root.buy("upgrade \{u.id}"); }
+                                }
+                            }
+                        }
+                    }
+                    if root.data.upgrades.length == 0: Text {
+                        text: "No upgrade available yet. Buy more producers."; color: root.muted; font-size: 12px; wrap: word-wrap;
+                    }
+                }
+            }
+
+            if root.playing && root.data.achievement != "": Rectangle {
+                height: 26px; border-radius: 6px; background: root.yellow.with-alpha(0.14);
+                Text {
+                    text: "Achievement unlocked: \{root.data.achievement}";
+                    color: root.yellow; font-size: 12px; horizontal-alignment: center; vertical-alignment: center;
+                }
+            }
+
+            if root.provider-error != "": Text {
+                text: root.provider-error; color: root.red; font-size: 11px; wrap: word-wrap; max-height: 32px; overflow: elide;
+            }
+
+            if root.playing && root.data.ascension-chips != "0": Text {
+                font-size: 11px; wrap: word-wrap; color: root.yellow;
+                text: "Ascension ready: +\{root.data.ascension-chips} chips. Ascend from the terminal game.";
+            }
+        }
+    }
+}

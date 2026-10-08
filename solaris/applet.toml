@@ -1,0 +1,10 @@
+# The installer replaces this with the absolute Windows path of the provider
+# copied into this folder; Illium appends the view's action.
+command = ["solaris-applet.exe"]
+icon = "icon.svg"
+label = "{bar_label}"
+# Also the game clock while the popup is closed: gaps longer than 90 seconds
+# count as time away, like closing the terminal game.
+interval = "1m"
+focusable = false
+popup = { width = 420, height = 620 }
