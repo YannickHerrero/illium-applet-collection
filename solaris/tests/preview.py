@@ -43,6 +43,7 @@ for name, values in [
     ('producers', {'has-data': True, 'data': game}),
     ('upgrades', dict(light, **{'has-data': True, 'tab': 'upgrades', 'amount': 'max', 'data': dict(game, achievement='')})),
     ('max', {'has-data': True, 'amount': 'max', 'data': game}),
+    ('keyboard', {'has-data': True, 'keyboard': True, 'selected': 2, 'data': dict(game, achievement='')}),
     ('terminal', {'has-data': True, 'data': {'in-terminal': True}}),
     ('loading', {}),
     ('error', {'provider-error': 'Save main.json: expected value at line 1 column 1'}),
@@ -69,4 +70,4 @@ for name, values in [
             errors.seek(0)
             text = errors.read()
             assert not text.strip(), text
-print('Six Slint fixtures compiled and rendered:', output)
+print('Seven Slint fixtures compiled and rendered:', output)

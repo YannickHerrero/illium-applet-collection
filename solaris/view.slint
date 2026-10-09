@@ -66,8 +66,11 @@ export component View inherits Window {
 
     in-out property <string> tab: "producers";
     in-out property <string> amount: "1";
+    // in-out so tests/preview.py can render a keyboard selection.
+    in-out property <int> selected: 0;
+    in-out property <bool> keyboard: false;
 
-    // Every provider run is a wsl.exe process, so the counter keeps going
+    // Every provider run is a separate process, so the counter keeps going
     // locally and clicks are sent in batches; a snapshot replaces both.
     property <int> ticks: 0;
     property <int> pending-clicks: 0;
@@ -76,12 +79,38 @@ export component View inherits Window {
     property <float> shown-energy: root.data.energy-scaled + root.data.eps-scaled * root.ticks / 10
         + (root.pending-clicks + root.sent-clicks) * root.data.click-scaled;
     property <bool> playing: root.has-data && !root.data.in-terminal;
+    property <int> rows: root.tab == "producers" ? root.data.producers.length : root.data.upgrades.length;
+    property <int> current: min(root.selected, root.rows - 1);
+    property <bool> space-down: false;
 
     pure function number(value: float) -> string {
         if (root.data.unit == "") {
             return value < 10 ? "\{floor(value * 10) / 10}" : "\{floor(value)}";
         }
         return "\{floor(value * 100) / 100}\{root.data.unit}";
+    }
+    pure function producer-enabled(p: ProducerRow) -> bool {
+        return root.shown-energy >= (root.amount == "10" ? p.cost-10-scaled : p.cost-1-scaled);
+    }
+    pure function upgrade-enabled(u: UpgradeRow) -> bool {
+        return root.shown-energy >= u.cost-scaled;
+    }
+    function show-tab(name: string) {
+        root.tab = name;
+        root.selected = 0;
+    }
+    function move(delta: int) {
+        root.selected = max(0, min(root.current + delta, root.rows - 1));
+    }
+    function activate() {
+        if (root.current < 0) { return; }
+        if (root.tab == "producers") {
+            if (root.producer-enabled(root.data.producers[root.current])) {
+                root.buy("buy \{root.data.producers[root.current].id} \{root.amount}");
+            }
+        } else if (root.upgrade-enabled(root.data.upgrades[root.current])) {
+            root.buy("upgrade \{root.data.upgrades[root.current].id}");
+        }
     }
     function send(verb: string) {
         root.outstanding += 1;
@@ -99,7 +128,11 @@ export component View inherits Window {
     }
 
     changed open => {
-        if (open && !busy) { root.send("refresh"); }
+        if (open) {
+            root.keyboard = false;
+            keys.focus();
+            if (!busy) { root.send("refresh"); }
+        }
     }
     completed => {
         root.ticks = 0;
@@ -127,6 +160,32 @@ export component View inherits Window {
     }
 
     background: bg;
+    // The bindings of the terminal game, for what the popup offers.
+    keys := FocusScope {
+        key-pressed(event) => {
+            if (!root.playing || event.modifiers.control || event.modifiers.alt || event.modifiers.meta) { return reject; }
+            root.keyboard = true;
+            if (event.text == Key.Space) { root.pending-clicks += 1; root.space-down = true; return accept; }
+            if (event.text == "j" || event.text == Key.DownArrow) { root.move(1); return accept; }
+            if (event.text == "k" || event.text == Key.UpArrow) { root.move(-1); return accept; }
+            if (event.text == Key.Return) { root.activate(); return accept; }
+            if (event.text == Key.Tab) {
+                root.amount = root.amount == "1" ? "10" : root.amount == "10" ? "max" : "1";
+                return accept;
+            }
+            if (event.text == "p") { root.show-tab("producers"); return accept; }
+            if (event.text == "u") { root.show-tab("upgrades"); return accept; }
+            if (event.text == "h" || event.text == "l" || event.text == Key.LeftArrow || event.text == Key.RightArrow) {
+                root.show-tab(root.tab == "producers" ? "upgrades" : "producers");
+                return accept;
+            }
+            return reject;
+        }
+        key-released(event) => {
+            if (event.text == Key.Space) { root.space-down = false; }
+            return reject;
+        }
+    }
     Rectangle {
         border-width: 1px; border-color: root.accent;
         VerticalLayout {
@@ -172,7 +231,7 @@ export component View inherits Window {
                 Rectangle {
                     width: 84px;
                     sun := Rectangle {
-                        width: sun-touch.pressed ? 70px : 78px; height: self.width;
+                        width: sun-touch.pressed || root.space-down ? 70px : 78px; height: self.width;
                         animate width { duration: 80ms; }
                         border-radius: self.width / 2;
                         background: sun-touch.has-hover ? root.yellow.with-alpha(0.22) : root.yellow.with-alpha(0.14);
@@ -193,11 +252,11 @@ export component View inherits Window {
                 height: 26px; spacing: 6px;
                 Pill {
                     text: "Producers"; selected: root.tab == "producers"; tint: root.accent; fg: root.fg;
-                    clicked => { root.tab = "producers"; }
+                    clicked => { root.show-tab("producers"); }
                 }
                 Pill {
                     text: "Upgrades \{root.data.upgrades-available}"; selected: root.tab == "upgrades"; tint: root.accent; fg: root.fg;
-                    clicked => { root.tab = "upgrades"; }
+                    clicked => { root.show-tab("upgrades"); }
                 }
                 Rectangle { horizontal-stretch: 1; }
                 Pill {
@@ -214,14 +273,25 @@ export component View inherits Window {
                 }
             }
 
-            if root.playing: Flickable {
+            if root.playing: flick := Flickable {
                 vertical-stretch: 1;
+                // Keeps the keyboard selection in view.
+                function reveal(top: length, bottom: length) {
+                    if (top + self.viewport-y < 0) {
+                        self.viewport-y = -top;
+                    } else if (bottom + self.viewport-y > self.height) {
+                        self.viewport-y = self.height - bottom;
+                    }
+                }
                 viewport-height: max(self.height, root.tab == "producers" ? producer-list.preferred-height : upgrade-list.preferred-height);
                 producer-list := VerticalLayout {
                     alignment: start; spacing: 4px;
                     visible: root.tab == "producers";
-                    for p in root.data.producers: Rectangle {
+                    for p[i] in root.data.producers: Rectangle {
+                        property <bool> chosen: root.keyboard && root.tab == "producers" && i == root.current;
+                        changed chosen => { if (self.chosen) { flick.reveal(self.y, self.y + self.height); } }
                         height: 46px; border-radius: 6px; background: root.surface.with-alpha(0.45);
+                        border-width: self.chosen ? 1px : 0px; border-color: root.accent;
                         HorizontalLayout {
                             padding-left: 10px; padding-right: 8px; spacing: 10px;
                             VerticalLayout {
@@ -233,7 +303,7 @@ export component View inherits Window {
                                 alignment: center;
                                 CostButton {
                                     text: root.amount == "1" ? p.cost-1 : root.amount == "10" ? p.cost-10 : p.max == "0" ? p.cost-1 : "\{p.max} for \{p.cost-max}";
-                                    enabled: root.shown-energy >= (root.amount == "10" ? p.cost-10-scaled : p.cost-1-scaled);
+                                    enabled: root.producer-enabled(p);
                                     tint: root.accent; fg: root.fg; bg: root.bg; muted: root.muted;
                                     clicked => { root.buy("buy \{p.id} \{root.amount}"); }
                                 }
@@ -244,9 +314,12 @@ export component View inherits Window {
                 upgrade-list := VerticalLayout {
                     alignment: start; spacing: 4px;
                     visible: root.tab == "upgrades";
-                    for u in root.data.upgrades: Rectangle {
+                    for u[i] in root.data.upgrades: Rectangle {
+                        property <bool> chosen: root.keyboard && root.tab == "upgrades" && i == root.current;
+                        changed chosen => { if (self.chosen) { flick.reveal(self.y, self.y + self.height); } }
                         height: max(46px, upgrade-text.preferred-height + 14px);
                         border-radius: 6px; background: root.surface.with-alpha(0.45);
+                        border-width: self.chosen ? 1px : 0px; border-color: root.accent;
                         HorizontalLayout {
                             padding-left: 10px; padding-right: 8px; spacing: 10px;
                             upgrade-text := VerticalLayout {
@@ -257,7 +330,7 @@ export component View inherits Window {
                             VerticalLayout {
                                 alignment: center;
                                 CostButton {
-                                    text: u.cost; enabled: root.shown-energy >= u.cost-scaled;
+                                    text: u.cost; enabled: root.upgrade-enabled(u);
                                     tint: root.accent; fg: root.fg; bg: root.bg; muted: root.muted;
                                     clicked => { root.buy("upgrade \{u.id}"); }
                                 }

@@ -6,5 +6,6 @@ label = "{bar_label}"
 # Also the game clock while the popup is closed: gaps longer than 90 seconds
 # count as time away, like closing the terminal game.
 interval = "1m"
-focusable = false
+# The popup takes the keyboard for the game's own key bindings.
+focusable = true
 popup = { width = 420, height = 620 }

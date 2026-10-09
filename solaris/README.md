@@ -12,6 +12,19 @@ The bar shows your production per second. The popup has:
 - **Upgrades**, the eight cheapest ones currently available,
 - your achievements and stellar chips, and a notice when an ascension is ready.
 
+The popup also plays with the keyboard, using the terminal game's bindings:
+
+| Key | Action |
+|---|---|
+| `Space` | mine, like a click on the sun |
+| `j` / `k`, `↓` / `↑` | move the selection in the list |
+| `Enter` | buy the selected producer or upgrade |
+| `Tab` | buy by 1, 10 or Max |
+| `p` / `u` | Producers / Upgrades |
+| `h` / `l`, `←` / `→` | switch between the two lists |
+
+The popup takes keyboard focus while open, so Illium's global shortcuts wait until you close it (`Esc`).
+
 Prestige upgrades and ascension, achievements and statistics, and auto-play stay in the terminal game. While `solaris.exe` runs, the popup only says so: the terminal game owns the save until you quit it, then the applet carries on from its last save.
 
 ## How it works
