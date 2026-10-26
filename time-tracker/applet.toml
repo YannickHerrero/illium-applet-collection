@@ -1,0 +1,17 @@
+# Work sessions across time zones; the provider owns the history.
+# The provider names the icon: icon-on.svg while a session is open.
+icon = "{icon}"
+label = "{bar_label}"
+# Breathes while a session is open; needs an Illium build with `pulse`.
+pulse = "{working}"
+# Also the heartbeat that ends a session left open while the machine slept.
+interval = "1m"
+popup = { width = 360, height = 300 }
+
+[settings]
+# City|Windows time zone identifier, separated by semicolons. The first zone
+# decides which day and week a session counts for.
+zones = "Tokyo|Tokyo Standard Time;Paris|Romance Standard Time"
+# Absolute Windows path of the session history; empty means
+# %LOCALAPPDATA%\illium-applet-collection\time-tracker\sessions.json.
+store = ""

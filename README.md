@@ -70,6 +70,14 @@ python3 -B dictate/install.py --windows-home /mnt/c/Users/<WindowsUser>
 python3 -B todo/install.py --windows-home /mnt/c/Users/<WindowsUser>
 ```
 
+## Time tracker
+
+[`time-tracker/`](time-tracker/README.md) is a work-session switch in the bar: start and stop working, see the clocks of the places you work between (Tokyo and Paris by default) and today's and this week's (Mon-Fri) totals. Every session is kept locally in a JSON file under `%LOCALAPPDATA%`; a link writes a history page with daily timelines and opens it in the browser. A PowerShell provider beats every minute, so a session left open while the machine sleeps ends at its last heartbeat.
+
+```sh
+python3 -B time-tracker/install.py --windows-home /mnt/c/Users/<WindowsUser>
+```
+
 ## Solaris
 
 [`solaris/`](solaris/README.md) plays [Solaris](https://github.com/YannickHerrero/solaris), the terminal idle game, from the bar: a live energy counter, the sun to click, producers and upgrades to buy. It shares the save of `solaris.exe` on Windows; a lock keeps the applet read-only while the terminal game runs. A native Windows provider built on Solaris's own game code runs every minute and on each action, so the game keeps going while Illium runs.

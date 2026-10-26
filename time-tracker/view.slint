@@ -1,0 +1,144 @@
+struct Clock { name: string, second-of-day: int, date: string }
+struct Data { icon: string, bar-label: string, working: bool, since: string, weekday: bool, clocks: [Clock], today-seconds: int, week-seconds: int, error: string }
+
+component Total inherits Rectangle {
+    in property <string> title;
+    in property <int> seconds;
+    in property <color> fg;
+    in property <color> muted;
+    in property <color> surface;
+    border-radius: 6px;
+    background: root.surface.with-alpha(0.55);
+    VerticalLayout {
+        padding: 10px; spacing: 2px;
+        Text { text: root.title; color: root.muted; font-size: 11px; }
+        Text {
+            text: floor(root.seconds / 3600) + "h " + (mod(floor(root.seconds / 60), 60) < 10 ? "0" : "") + mod(floor(root.seconds / 60), 60) + "m";
+            color: root.fg; font-size: 20px; font-weight: 600;
+        }
+    }
+}
+
+export component View inherits Window {
+    no-frame: true;
+    in property <length> popup-width: 360px;
+    in property <length> popup-height: 300px;
+    width: popup-width; height: popup-height;
+    in property <color> bg: #1e1e2e;
+    in property <color> surface: #313244;
+    in property <color> overlay: #45475a;
+    in property <color> fg: #cdd6f4;
+    in property <color> muted: #a6adc8;
+    in property <color> accent: #cba6f7;
+    in property <color> green: #a6e3a1;
+    in property <color> red: #f38ba8;
+    in property <Data> data;
+    in property <bool> busy: false;
+    in property <bool> open: false;
+    in property <string> provider-error;
+    callback action(string);
+    callback completed();
+
+    // The provider runs once a minute; clocks and totals keep counting in
+    // between. in-out so a preview can render a later second.
+    in-out property <int> elapsed: 0;
+    // A click answers at once; the provider's answer, a PowerShell run away,
+    // takes over once every action sent has come back.
+    in-out property <bool> intent: false;
+    in-out property <int> outstanding: 0;
+    property <bool> working: root.outstanding > 0 ? root.intent : root.data.working;
+    property <int> running: root.data.working ? root.elapsed : 0;
+
+    pure function two(value: int) -> string {
+        return (value < 10 ? "0" : "") + value;
+    }
+    pure function clock(seconds: int) -> string {
+        return root.two(mod(floor(seconds / 3600), 24)) + ":" + root.two(mod(floor(seconds / 60), 60));
+    }
+    function send(verb: string) {
+        root.outstanding += 1;
+        root.action(verb);
+    }
+
+    changed data => { root.elapsed = 0; }
+    changed open => { if (open && !busy) { root.send("refresh"); } }
+    completed => { root.outstanding = max(0, root.outstanding - 1); }
+    Timer {
+        interval: 1s;
+        running: root.open;
+        triggered => { root.elapsed += 1; }
+    }
+
+    background: bg;
+    Rectangle {
+        border-width: 1px; border-color: root.accent;
+        VerticalLayout {
+            padding: 18px; spacing: 14px;
+            HorizontalLayout {
+                height: 32px; spacing: 12px;
+                Image {
+                    source: root.working ? @image-url("icon-on.svg") : @image-url("icon.svg");
+                    width: 24px; height: 24px; colorize: root.working ? root.green : root.accent;
+                }
+                VerticalLayout {
+                    horizontal-stretch: 1; spacing: 2px;
+                    Text { text: "Time tracker"; color: root.fg; font-size: 16px; font-weight: 600; }
+                    Text {
+                        text: !root.working ? "Not working"
+                            : root.data.working ? "Working since " + root.data.since
+                            : "Starting…";
+                        color: root.working ? root.green : root.muted; font-size: 11px;
+                    }
+                }
+            }
+            HorizontalLayout {
+                spacing: 10px;
+                for zone in root.data.clocks: VerticalLayout {
+                    horizontal-stretch: 1; spacing: 1px;
+                    Text { text: zone.name; color: root.muted; font-size: 11px; }
+                    Text { text: root.clock(zone.second-of-day + root.elapsed); color: root.fg; font-size: 24px; font-weight: 600; }
+                    Text { text: zone.date; color: root.muted; font-size: 11px; }
+                }
+            }
+            HorizontalLayout {
+                spacing: 10px;
+                Total {
+                    title: "Today"; seconds: root.data.today-seconds + root.running;
+                    fg: root.fg; muted: root.muted; surface: root.surface;
+                }
+                Total {
+                    title: "This week, Mon-Fri"; seconds: root.data.week-seconds + (root.data.weekday ? root.running : 0);
+                    fg: root.fg; muted: root.muted; surface: root.surface;
+                }
+            }
+            Rectangle {
+                height: 36px; border-radius: 6px;
+                background: toggle-touch.has-hover ? (root.working ? root.red : root.accent) : (root.working ? root.red : root.accent).with-alpha(0.85);
+                Text {
+                    text: root.working ? "Stop working" : "Start working";
+                    color: root.bg; font-size: 13px; font-weight: 600;
+                }
+                toggle-touch := TouchArea {
+                    clicked => {
+                        root.intent = !root.working;
+                        root.send(root.intent ? "start" : "stop");
+                    }
+                }
+            }
+            HorizontalLayout {
+                height: 16px; spacing: 10px;
+                Text {
+                    horizontal-stretch: 1;
+                    text: root.provider-error != "" ? root.provider-error : root.data.error;
+                    color: root.red; font-size: 11px; overflow: elide; vertical-alignment: center;
+                }
+                Text {
+                    text: "Open history ↗";
+                    color: history-touch.has-hover ? root.accent : root.muted;
+                    font-size: 12px; vertical-alignment: center;
+                    history-touch := TouchArea { clicked => { root.send("report"); } }
+                }
+            }
+        }
+    }
+}

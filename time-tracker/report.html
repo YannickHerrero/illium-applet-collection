@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Time tracker</title>
+<style>
+  :root {
+    --bg: #eff1f5; --surface: #e6e9ef; --overlay: #ccd0da; --fg: #4c4f69;
+    --muted: #6c6f85; --accent: #8839ef; --ongoing: #40a02b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e2e; --surface: #313244; --overlay: #45475a; --fg: #cdd6f4;
+      --muted: #a6adc8; --accent: #cba6f7; --ongoing: #a6e3a1;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, "Segoe UI", sans-serif;
+  }
+  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { margin: 0; font-size: 24px; }
+  .sub { color: var(--muted); font-size: 12px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 24px 0 32px; }
+  .tile { background: var(--surface); border-radius: 8px; padding: 12px 16px; }
+  .tile b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .tile span { color: var(--muted); font-size: 12px; }
+  h2 { display: flex; justify-content: space-between; align-items: baseline; font-size: 15px; margin: 32px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--overlay); }
+  h2 span { color: var(--muted); font-weight: 400; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .day { display: grid; grid-template-columns: 110px 1fr 70px; gap: 6px 16px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--surface); }
+  .date { font-weight: 600; }
+  .date small { display: block; color: var(--muted); font-weight: 400; }
+  .total { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .track { position: relative; height: 14px; background: var(--surface); border-radius: 3px; }
+  .track i { position: absolute; top: 0; bottom: 0; background: var(--accent); border-radius: 3px; min-width: 2px; }
+  .track i.ongoing { background: var(--ongoing); }
+  .track u { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--overlay); }
+  .sessions { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 4px 20px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .sessions b { color: var(--fg); font-weight: 500; }
+  .empty { color: var(--muted); margin-top: 32px; }
+  @media (max-width: 560px) {
+    .day { grid-template-columns: 1fr auto; }
+    .track { grid-column: 1 / 3; grid-row: 2; }
+    .sessions { grid-column: 1 / 3; }
+  }
+</style>
+</head>
+<body>
+<main id="root"></main>
+<script>
+const DATA = /*DATA*/null;
+
+const root = document.getElementById('root');
+const pad = n => String(n).padStart(2, '0');
+const duration = s => { const m = Math.floor(s / 60); return Math.floor(m / 60) + 'h' + pad(m % 60); };
+// Dates are calendar days of the reference zone, so they are read as UTC to
+// stay clear of the browser's own zone.
+const day = iso => new Date(iso + 'T00:00:00Z');
+const label = (iso, options) => day(iso).toLocaleDateString('en-GB', Object.assign({ timeZone: 'UTC' }, options));
+const mondayOf = iso => { const d = day(iso); d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7); return d.toISOString().slice(0, 10); };
+const el = (tag, attrs, ...children) => {
+  const node = document.createElement(tag);
+  Object.assign(node, attrs);
+  node.append(...children);
+  return node;
+};
+
+function render() {
+  const days = DATA.days;
+  const total = days.reduce((sum, d) => sum + d.seconds, 0);
+  const sessions = days.reduce((sum, d) => sum + d.sessions.length, 0);
+  root.append(
+    el('h1', {}, 'Time tracker'),
+    el('div', { className: 'sub' }, `Days and timelines in ${DATA.zones[0]} time · generated ${DATA.generated}`),
+  );
+  if (!days.length) { root.append(el('p', { className: 'empty' }, 'No session recorded yet.')); return; }
+  const tiles = [
+    [duration(total), 'tracked in total'],
+    [String(days.length), days.length > 1 ? 'days worked' : 'day worked'],
+    [duration(total / days.length), 'average per day worked'],
+    [String(sessions), sessions > 1 ? 'sessions' : 'session'],
+  ];
+  root.append(el('div', { className: 'tiles' }, ...tiles.map(([value, text]) => el('div', { className: 'tile' }, el('b', {}, value), el('span', {}, text)))));
+
+  const weeks = new Map();
+  for (const d of [...days].reverse()) {
+    const key = mondayOf(d.date);
+    if (!weeks.has(key)) weeks.set(key, []);
+    weeks.get(key).push(d);
+  }
+  for (const [monday, list] of weeks) {
+    const workweek = list.filter(d => day(d.date).getUTCDay() % 6 !== 0).reduce((sum, d) => sum + d.seconds, 0);
+    const all = list.reduce((sum, d) => sum + d.seconds, 0);
+    const summary = all === workweek ? duration(all) : `${duration(workweek)} Mon-Fri · ${duration(all)} with the weekend`;
+    root.append(el('h2', {}, `Week of ${label(monday, { day: 'numeric', month: 'long', year: 'numeric' })}`, el('span', {}, summary)));
+    for (const d of list) root.append(renderDay(d));
+  }
+}
+
+function renderDay(d) {
+  const track = el('div', { className: 'track', title: '00:00 to 24:00' });
+  for (const hour of [6, 12, 18]) track.append(el('u', { style: `left:${hour / 24 * 100}%` }));
+  for (const s of d.sessions) {
+    const times = s.times.map(t => `${t.start} → ${t.end} ${t.zone}`).join('\n');
+    track.append(el('i', {
+      className: s.ongoing ? 'ongoing' : '',
+      title: times,
+      style: `left:${s.from / 1440 * 100}%;width:${(s.to - s.from) / 1440 * 100}%`,
+    }));
+  }
+  const list = el('div', { className: 'sessions' }, ...d.sessions.map(s => el('span', {},
+    el('b', {}, `${s.times[0].start} → ${s.ongoing ? 'now' : s.times[0].end}`),
+    ...s.times.slice(1).map(t => ` · ${t.start} → ${s.ongoing ? 'now' : t.end} ${t.zone}`),
+    ` (${duration(s.seconds)})`,
+  )));
+  return el('div', { className: 'day' },
+    el('div', { className: 'date' }, label(d.date, { weekday: 'long' }), el('small', {}, label(d.date, { day: 'numeric', month: 'short' }))),
+    track,
+    el('div', { className: 'total' }, duration(d.seconds)),
+    list,
+  );
+}
+
+render();
+</script>
+</body>
+</html>
