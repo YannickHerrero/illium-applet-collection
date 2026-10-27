@@ -36,11 +36,22 @@ function Format-Instant([DateTimeOffset]$instant) {
 function Format-Clock([DateTimeOffset]$instant, $zone, [string]$pattern) {
     return [TimeZoneInfo]::ConvertTime($instant, $zone).ToString($pattern, $script:Invariant)
 }
-function Format-Duration([int]$seconds) {
-    $minutes = [Math]::Floor($seconds / 60)
-    $hours = [Math]::Floor($minutes / 60)
-    if ($hours -eq 0) { return "$($minutes)m" }
-    return "$($hours)h" + ($minutes % 60).ToString('00', $script:Invariant)
+# An HH:MM clock of the given day in a zone, as an instant.
+function ConvertFrom-Clock([string]$text, [DateTime]$day, $zone) {
+    if ($text -notmatch '^\s*(\d{1,2}):(\d{2})\s*$' -or [int]$Matches[1] -gt 23 -or [int]$Matches[2] -gt 59) {
+        throw "Expected a time as HH:MM, got '$text'"
+    }
+    $local = $day.AddHours([int]$Matches[1]).AddMinutes([int]$Matches[2])
+    return [DateTimeOffset][TimeZoneInfo]::ConvertTimeToUtc($local, $zone)
+}
+# The view sends its arguments as one JSON array; a bare verb also works.
+function Read-Action([string]$text) {
+    if (-not $text.StartsWith('[')) { return , @($text) }
+    # Windows PowerShell emits the array as one object: assign before wrapping.
+    $parts = ConvertFrom-Json -InputObject $text
+    $parts = [object[]]@($parts)
+    if ($parts.Count -eq 0 -or @($parts | Where-Object { $_ -isnot [string] }).Count) { throw 'Invalid time tracker action' }
+    return , $parts
 }
 
 function New-Store { return [ordered]@{ version = 1; sessions = @() } }
@@ -96,9 +107,54 @@ function Close-Stale($store, [DateTimeOffset]$now) {
     $open.end = $seen
     return $true
 }
+# Today's sessions in the reference zone, by their position in the store.
+function Get-Today($store, $zone, [DateTimeOffset]$now) {
+    $today = [TimeZoneInfo]::ConvertTime($now, $zone).Date
+    for ($index = 0; $index -lt $store.sessions.Count; $index++) {
+        $session = $store.sessions[$index]
+        if ([TimeZoneInfo]::ConvertTime($session.start, $zone).Date -eq $today) {
+            [pscustomobject]@{ index = $index; session = $session }
+        }
+    }
+}
+function Get-TodaySession($store, $zone, [DateTimeOffset]$now, [string]$text) {
+    $index = 0
+    if (-not [int]::TryParse($text, [ref]$index)) { throw "Expected a session number, got '$text'" }
+    $found = @(Get-Today $store $zone $now | Where-Object { $_.index -eq $index })
+    if ($found.Count -ne 1) { throw 'That session is no longer today''s; reopen the popup' }
+    return $found[0].session
+}
+# Replaces a session's bounds, both given as HH:MM of today in the reference
+# zone; an empty end keeps the session open. Future or overlapping times are
+# refused, so an edit cannot count the same minute twice.
+function Set-Session($store, $session, $zone, [DateTimeOffset]$now, [string]$startText, [string]$endText) {
+    $today = [TimeZoneInfo]::ConvertTime($now, $zone).Date
+    $start = ConvertFrom-Clock $startText $today $zone
+    $end = $null
+    if ($endText.Trim()) {
+        $end = ConvertFrom-Clock $endText $today $zone
+        if ($end -le $start) { throw 'The end must come after the start' }
+        if ($end -gt $now) { throw 'The end is still to come' }
+    } elseif ($session.end -or $session -ne (Get-Open $store)) {
+        throw 'An end is needed; only the running session can stay open'
+    }
+    if ($start -gt $now) { throw 'The start is still to come' }
+    $until = if ($end) { $end } else { $now }
+    foreach ($other in $store.sessions) {
+        if ($other -eq $session) { continue }
+        $otherEnd = if ($other.end) { $other.end } else { $now }
+        if ($start -lt $otherEnd -and $other.start -lt $until) {
+            throw ('Overlaps the session from ' + (Format-Clock $other.start $zone 'HH:mm'))
+        }
+    }
+    $session.start = $start
+    $session.end = $end
+    if (-not $end) { $session.seen = $now }
+}
 # Returns whether the store changed. `start` and `stop` rather than a toggle,
-# so a click on a stale popup cannot invert the state.
-function Invoke-Action($store, [string]$verb, [DateTimeOffset]$now) {
+# so a click on a stale popup cannot invert the state. `edit`, `add` and
+# `delete` fix today's history after a forgotten click.
+function Invoke-Action($store, [string]$verb, [DateTimeOffset]$now, $zone = $null, [string[]]$arguments = @()) {
     $open = Get-Open $store
     switch ($verb) {
         { $_ -in @('', 'refresh') } {
@@ -114,6 +170,25 @@ function Invoke-Action($store, [string]$verb, [DateTimeOffset]$now) {
         'stop' {
             if (-not $open) { return $false }
             $open.end = $now
+            return $true
+        }
+        'edit' {
+            if ($arguments.Count -lt 3) { throw 'edit needs a session, a start and an end' }
+            $session = Get-TodaySession $store $zone $now $arguments[0]
+            Set-Session $store $session $zone $now $arguments[1] $arguments[2]
+            return $true
+        }
+        'add' {
+            if ($arguments.Count -lt 2) { throw 'add needs a start and an end' }
+            $session = [ordered]@{ start = $now; end = $now; seen = $null }
+            Set-Session $store $session $zone $now $arguments[0] $arguments[1]
+            $store.sessions = @(@($store.sessions) + , $session | Sort-Object { $_.start })
+            return $true
+        }
+        'delete' {
+            if ($arguments.Count -lt 1) { throw 'delete needs a session' }
+            $session = Get-TodaySession $store $zone $now $arguments[0]
+            $store.sessions = @($store.sessions | Where-Object { $_ -ne $session })
             return $true
         }
         default { throw "Unknown time tracker action: $verb" }
@@ -150,6 +225,13 @@ function Build-Data($store, $zones, [DateTimeOffset]$now, [string]$failure) {
         if ($segment.day -ge $monday -and $segment.day -le $friday) { $weekSeconds += $seconds }
     }
     $open = Get-Open $store
+    $sessions = [object[]]@(foreach ($entry in @(Get-Today $store $reference $now)) {
+        [ordered]@{
+            index = $entry.index
+            start = Format-Clock $entry.session.start $reference 'HH:mm'
+            end = $(if ($entry.session.end) { Format-Clock $entry.session.end $reference 'HH:mm' } else { '' })
+        }
+    })
     $clocks = [object[]]@(foreach ($entry in $zones) {
         $local = [TimeZoneInfo]::ConvertTime($now, $entry.zone)
         [ordered]@{
@@ -160,12 +242,15 @@ function Build-Data($store, $zones, [DateTimeOffset]$now, [string]$failure) {
     })
     return [ordered]@{
         icon = $(if ($open) { 'icon-on.svg' } else { 'icon.svg' })
-        bar_label = $(if ($open) { Format-Duration $todaySeconds } else { '' })
+        # Illium counts it up in the bar between two runs.
+        timer_seconds = $(if ($open) { $todaySeconds } else { $null })
         working = [bool]$open
         since = $(if ($open) { Format-Clock $open.start $reference 'HH:mm' } else { '' })
         # The view keeps counting between two runs only on a weekday.
         weekday = $today -le $friday
         clocks = $clocks
+        # Today's sessions in the reference zone, editable from the popup.
+        today = $sessions
         today_seconds = $todaySeconds
         week_seconds = $weekSeconds
         error = $failure
@@ -224,7 +309,10 @@ try {
     $path = Resolve-Store
     $store = Read-Store $path
     $changed = Close-Stale $store $now
-    if ($Action -eq 'report') {
+    $parts = Read-Action $Action
+    $verb = $parts[0]
+    $arguments = [string[]]@($parts | Select-Object -Skip 1)
+    if ($verb -eq 'report') {
         $directory = Split-Path -Parent $path
         if (-not (Test-Path -LiteralPath $directory)) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
         # Written beside the history, never into the applet folder, whose
@@ -232,7 +320,7 @@ try {
         $report = Join-Path $directory 'report.html'
         Write-Report (Join-Path $PSScriptRoot 'report.html') $report (Build-Report $store $zones $now)
         Start-Process -FilePath $report
-    } elseif (Invoke-Action $store $Action $now) {
+    } elseif (Invoke-Action $store $verb $now $zones[0].zone $arguments) {
         $changed = $true
     }
     if ($changed) { Write-Store $path $store }

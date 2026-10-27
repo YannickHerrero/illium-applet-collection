@@ -4,12 +4,13 @@ A work-session switch in the bar, with the clocks of the places you work between
 
 ## What it shows
 
-The bar icon turns into a play sign while you work, slowly fading in and out so you can tell at a glance that time is being counted, with today's total beside it; while you are off, it is a still stopwatch without text. The fading uses the manifest's `pulse` key, which needs an Illium build that knows it: older builds reject the manifest.
+The bar icon turns into a play sign while you work, slowly fading in and out so you can tell at a glance that time is being counted, with today's total beside it as `H:MM:SS`, ticking every second; while you are off, it is a still stopwatch without text. The fading and the ticking use the manifest's `pulse` and `timer` keys: the provider prints today's total once a minute and Illium counts it up in between. They need an Illium build that knows them: older builds reject the manifest.
 
 The popup holds:
 
 - **One clock per configured zone**, with its date. Tokyo and Paris by default.
 - **Today** and **This week, Mon-Fri**, both counting live while a session is open. The week is the Monday to Friday of the current week; weekend work counts for its day, never for the week.
+- **Today's sessions**, each as a start and end time in the reference zone. Forgot to click when you sat down? Retype the start, press Enter or **Save**. Forgot to stop before lunch? Give the session its end and add the afternoon on the empty row (**Add**). **×** removes a session. The end of the running session may stay empty; a time still to come, or one overlapping another session, is refused and explained in the popup. Only sessions that started today, in the reference zone, are listed: older days are read-only, edit the history file for those.
 - **Start working / Stop working.**
 - **Open history ↗**, which writes the history page and opens it in the default browser: totals, then each week (Mon-Fri total, and the total with the weekend when you worked one), then each day newest first with a 24-hour timeline and every session in every zone. Hover a bar of the timeline for its times.
 
@@ -37,7 +38,7 @@ The file is written whole to a temporary file beside it, then moved over the pre
 
 The PowerShell provider runs every minute, and that run doubles as a heartbeat: an open session records the last minute it was seen. When the provider finds an open session whose heartbeat is more than 5 minutes old (the machine slept or was shut down, or Illium was not running), it ends that session at its last heartbeat and leaves the tracker off: the time in the gap is unknown, so it is not counted, and you start a new session when you are back. A restart of Illium shorter than that keeps the session going.
 
-The view sends `start` or `stop` rather than a toggle, so a click on a popup showing a stale state cannot invert it, and it answers the click before the provider does. Between two runs it advances the clocks and totals itself, one second at a time.
+The view sends `start` or `stop` rather than a toggle, so a click on a popup showing a stale state cannot invert it, and it answers the click before the provider does. Between two runs it advances the clocks and totals itself, one second at a time. Edits travel as `edit <session> <start> <end>`, `add <start> <end>` and `delete <session>`, the session being its position in the history file, which the provider checks still belongs to today before touching it; the popup refreshes its list on opening.
 
 Set `[settings] store` to keep the history elsewhere, a synchronised folder for instance.
 
@@ -58,4 +59,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File time-tracker/tests/provider.
 xvfb-run -a python3 time-tracker/tests/preview.py /tmp/time-tracker-preview   # optional, renders the view
 ```
 
-The provider fixtures cover the zones, start/stop/refresh, today and week totals (weekend and previous week excluded, Paris winter time), the stale heartbeat, the split at midnight, the history page data and its injection into the page, the store round-trip (no BOM, no leftover temporary file, a corrupt file left alone) and whole-script runs started the way Illium starts them. No browser is opened.
+The provider fixtures cover the zones, start/stop/refresh, today's editable sessions (edit, add, delete, their refusals), today and week totals (weekend and previous week excluded, Paris winter time), the stale heartbeat, the split at midnight, the history page data and its injection into the page, the store round-trip (no BOM, no leftover temporary file, a corrupt file left alone) and whole-script runs started the way Illium starts them. No browser is opened.

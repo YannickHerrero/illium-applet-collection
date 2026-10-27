@@ -1,12 +1,13 @@
 # Work sessions across time zones; the provider owns the history.
 # The provider names the icon: icon-on.svg while a session is open.
 icon = "{icon}"
-label = "{bar_label}"
+# Today's total, counted up every second by Illium; no text while off.
+timer = "{timer_seconds}"
 # Breathes while a session is open; needs an Illium build with `pulse`.
 pulse = "{working}"
 # Also the heartbeat that ends a session left open while the machine slept.
 interval = "1m"
-popup = { width = 360, height = 300 }
+popup = { width = 360, height = 440 }
 
 [settings]
 # City|Windows time zone identifier, separated by semicolons. The first zone

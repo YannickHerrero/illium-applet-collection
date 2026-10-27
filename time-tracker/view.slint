@@ -1,5 +1,6 @@
 struct Clock { name: string, second-of-day: int, date: string }
-struct Data { icon: string, bar-label: string, working: bool, since: string, weekday: bool, clocks: [Clock], today-seconds: int, week-seconds: int, error: string }
+struct Session { index: int, start: string, end: string }
+struct Data { icon: string, working: bool, since: string, weekday: bool, clocks: [Clock], today: [Session], today-seconds: int, week-seconds: int, error: string }
 
 component Total inherits Rectangle {
     in property <string> title;
@@ -19,10 +20,93 @@ component Total inherits Rectangle {
     }
 }
 
+// An HH:MM field; Enter submits the row it belongs to.
+component TimeField inherits Rectangle {
+    in property <string> placeholder;
+    in-out property <string> text <=> input.text;
+    in property <color> fg;
+    in property <color> muted;
+    in property <color> accent;
+    in property <color> overlay;
+    in property <color> surface;
+    in property <color> bg;
+    callback edited();
+    callback accepted();
+    width: 58px; height: 26px;
+    border-radius: 5px; border-width: 1px;
+    border-color: input.has-focus ? root.accent : root.overlay;
+    background: root.surface.with-alpha(0.45);
+    input := TextInput {
+        x: 6px; width: parent.width - 12px; height: parent.height;
+        color: root.fg; font-size: 13px; single-line: true;
+        horizontal-alignment: center; vertical-alignment: center;
+        selection-background-color: root.accent; selection-foreground-color: root.bg;
+        edited => { root.edited(); }
+        accepted => { root.accepted(); }
+    }
+    Text {
+        text: root.placeholder; color: root.muted; font-size: 13px;
+        horizontal-alignment: center; vertical-alignment: center;
+        visible: input.text == "";
+    }
+}
+
+component SessionRow inherits HorizontalLayout {
+    in property <string> start;
+    in property <string> end;
+    in property <bool> adding: false;
+    in property <color> fg;
+    in property <color> muted;
+    in property <color> accent;
+    in property <color> overlay;
+    in property <color> surface;
+    in property <color> bg;
+    in property <color> red;
+    in-out property <string> draft-start: root.start;
+    in-out property <string> draft-end: root.end;
+    property <bool> changed: root.draft-start != root.start || root.draft-end != root.end;
+    callback save(string, string);
+    callback remove();
+    height: 26px; spacing: 6px;
+    TimeField {
+        placeholder: root.adding ? "start" : "";
+        text <=> root.draft-start;
+        fg: root.fg; muted: root.muted; accent: root.accent; overlay: root.overlay; surface: root.surface; bg: root.bg;
+        accepted => { if (root.changed) { root.save(root.draft-start, root.draft-end); } }
+    }
+    Text { text: "–"; color: root.muted; font-size: 13px; vertical-alignment: center; }
+    TimeField {
+        placeholder: root.adding ? "end" : "now";
+        text <=> root.draft-end;
+        fg: root.fg; muted: root.muted; accent: root.accent; overlay: root.overlay; surface: root.surface; bg: root.bg;
+        accepted => { if (root.changed) { root.save(root.draft-start, root.draft-end); } }
+    }
+    Rectangle {
+        horizontal-stretch: 1; height: 26px;
+        Text {
+            x: 0; text: root.adding ? "Add" : "Save";
+            color: save-touch.has-hover ? root.accent : root.muted;
+            font-size: 12px; vertical-alignment: center; height: parent.height;
+            visible: root.changed;
+            save-touch := TouchArea { clicked => { root.save(root.draft-start, root.draft-end); } }
+        }
+    }
+    Rectangle {
+        width: 22px; height: 26px;
+        visible: !root.adding;
+        Text {
+            text: "×"; color: remove-touch.has-hover ? root.red : root.muted;
+            font-size: 16px; horizontal-alignment: center; vertical-alignment: center;
+            width: parent.width; height: parent.height;
+        }
+        remove-touch := TouchArea { clicked => { root.remove(); } }
+    }
+}
+
 export component View inherits Window {
     no-frame: true;
     in property <length> popup-width: 360px;
-    in property <length> popup-height: 300px;
+    in property <length> popup-height: 440px;
     width: popup-width; height: popup-height;
     in property <color> bg: #1e1e2e;
     in property <color> surface: #313244;
@@ -36,7 +120,8 @@ export component View inherits Window {
     in property <bool> busy: false;
     in property <bool> open: false;
     in property <string> provider-error;
-    callback action(string);
+    // Every action travels as one JSON array: verb, then up to three arguments.
+    callback action(string, string, string, string);
     callback completed();
 
     // The provider runs once a minute; clocks and totals keep counting in
@@ -46,6 +131,9 @@ export component View inherits Window {
     // takes over once every action sent has come back.
     in-out property <bool> intent: false;
     in-out property <int> outstanding: 0;
+    // The add row keeps its text until the provider accepts it.
+    in-out property <string> add-start: "";
+    in-out property <string> add-end: "";
     property <bool> working: root.outstanding > 0 ? root.intent : root.data.working;
     property <int> running: root.data.working ? root.elapsed : 0;
 
@@ -55,13 +143,16 @@ export component View inherits Window {
     pure function clock(seconds: int) -> string {
         return root.two(mod(floor(seconds / 3600), 24)) + ":" + root.two(mod(floor(seconds / 60), 60));
     }
-    function send(verb: string) {
+    function send(verb: string, a: string, b: string, c: string) {
         root.outstanding += 1;
-        root.action(verb);
+        root.action(verb, a, b, c);
     }
 
-    changed data => { root.elapsed = 0; }
-    changed open => { if (open && !busy) { root.send("refresh"); } }
+    changed data => {
+        root.elapsed = 0;
+        if (root.data.error == "") { root.add-start = ""; root.add-end = ""; }
+    }
+    changed open => { if (open && !busy) { root.send("refresh", "", "", ""); } }
     completed => { root.outstanding = max(0, root.outstanding - 1); }
     Timer {
         interval: 1s;
@@ -111,6 +202,34 @@ export component View inherits Window {
                     fg: root.fg; muted: root.muted; surface: root.surface;
                 }
             }
+            // Today's sessions, in the reference zone; a forgotten click is
+            // fixed here. Enter or Save sends the row, × removes it.
+            VerticalLayout {
+                spacing: 4px;
+                Text { text: "Today's sessions"; color: root.muted; font-size: 11px; }
+                Flickable {
+                    height: min(3, root.data.today.length) * 30px;
+                    viewport-height: root.data.today.length * 30px;
+                    VerticalLayout {
+                        spacing: 4px;
+                        for session in root.data.today: SessionRow {
+                            start: session.start; end: session.end;
+                            fg: root.fg; muted: root.muted; accent: root.accent; overlay: root.overlay;
+                            surface: root.surface; bg: root.bg; red: root.red;
+                            save(start, end) => { root.send("edit", session.index, start, end); }
+                            remove => { root.send("delete", session.index, "", ""); }
+                        }
+                    }
+                }
+                SessionRow {
+                    adding: true; start: ""; end: "";
+                    draft-start <=> root.add-start; draft-end <=> root.add-end;
+                    fg: root.fg; muted: root.muted; accent: root.accent; overlay: root.overlay;
+                    surface: root.surface; bg: root.bg; red: root.red;
+                    save(start, end) => { root.send("add", start, end, ""); }
+                }
+            }
+            Rectangle { vertical-stretch: 1; }
             Rectangle {
                 height: 36px; border-radius: 6px;
                 background: toggle-touch.has-hover ? (root.working ? root.red : root.accent) : (root.working ? root.red : root.accent).with-alpha(0.85);
@@ -121,7 +240,7 @@ export component View inherits Window {
                 toggle-touch := TouchArea {
                     clicked => {
                         root.intent = !root.working;
-                        root.send(root.intent ? "start" : "stop");
+                        root.send(root.intent ? "start" : "stop", "", "", "");
                     }
                 }
             }
@@ -136,7 +255,7 @@ export component View inherits Window {
                     text: "Open history ↗";
                     color: history-touch.has-hover ? root.accent : root.muted;
                     font-size: 12px; vertical-alignment: center;
-                    history-touch := TouchArea { clicked => { root.send("report"); } }
+                    history-touch := TouchArea { clicked => { root.send("report", "", "", ""); } }
                 }
             }
         }

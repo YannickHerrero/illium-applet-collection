@@ -18,7 +18,6 @@ output.mkdir(parents=True, exist_ok=True)
 def payload(working, today, week, error=''):
     return {
         'icon': 'icon-on.svg' if working else 'icon.svg',
-        'bar-label': '',
         'working': working,
         'since': '09:30' if working else '',
         'weekday': True,
@@ -26,6 +25,7 @@ def payload(working, today, week, error=''):
             {'name': 'Tokyo', 'second-of-day': 14 * 3600 + 7 * 60, 'date': 'Mon 26 Oct'},
             {'name': 'Paris', 'second-of-day': 6 * 3600 + 7 * 60, 'date': 'Mon 26 Oct'},
         ],
+        'today': [{'index': 0, 'start': '08:00', 'end': '08:30'}, {'index': 1, 'start': '09:30', 'end': '' if working else '12:45'}],
         'today-seconds': today,
         'week-seconds': week,
         'error': error,
@@ -52,11 +52,11 @@ for name, values in [
                     time.sleep(0.5)
                     assert process.poll() is None, f'{name}: viewer exited'
                     image = ImageGrab.grab()
-                    if image.crop((0, 0, 360, 300)).getextrema() != ((0, 0), (0, 0), (0, 0)):
+                    if image.crop((0, 0, 360, 440)).getextrema() != ((0, 0), (0, 0), (0, 0)):
                         break
                 else:
                     raise AssertionError(f'{name}: nothing rendered')
-                image.crop((0, 0, 360, 300)).save(output / f'{name}.png')
+                image.crop((0, 0, 360, 440)).save(output / f'{name}.png')
             finally:
                 process.terminate()
                 process.wait(timeout=5)

@@ -38,7 +38,7 @@ Assert-Throws { Invoke-Action $store 'pause' (At '2026-10-26T09:00:00Z') } 'unkn
 $data = Build-Data $store $zones (At '2026-10-26T10:00:00Z') ''
 Assert-Equal $data.working 'False' 'off'
 Assert-Equal $data.icon 'icon.svg' 'off icon'
-Assert-Equal $data.bar_label '' 'no label while off'
+Assert-Equal $data.timer_seconds '' 'no timer while off'
 Assert-Equal $data.today_seconds 26100 'today: 09:30 to 12:45 and 14:00 to 18:00 in Tokyo'
 Assert-Equal $data.week_seconds 26100 'week so far'
 Assert-Equal $data.weekday 'True' 'Monday counts for the week'
@@ -52,11 +52,71 @@ $data = Build-Data $store $zones (At '2026-10-27T01:05:00Z') ''
 Assert-Equal $data.working 'True' 'working'
 Assert-Equal $data.icon 'icon-on.svg' 'working icon'
 Assert-Equal $data.since '09:00' 'since, in Tokyo'
-Assert-Equal $data.bar_label '1h05' 'bar label'
+Assert-Equal $data.timer_seconds 3900 'timer counts today'
 Assert-Equal $data.today_seconds 3900 'open session counts until now'
 Assert-Equal $data.week_seconds 30000 'week adds Monday'
 $json = ConvertTo-Json -InputObject $data -Depth 5 -Compress
 if ($json -notmatch '"clocks":\[\{') { throw "clocks must stay a JSON array: $json" }
+if ($json -notmatch '"timer_seconds":3900,') { throw "the timer must be a JSON number: $json" }
+$json = ConvertTo-Json -InputObject (Build-Data (New-Store) $zones (At '2026-10-27T01:05:00Z') '') -Depth 5 -Compress
+if ($json -notmatch '"timer_seconds":null') { throw "no timer while off must be null: $json" }
+
+# Today's sessions, editable from the popup, in Tokyo time.
+$tokyo = $zones[0].zone
+Assert-Equal (Read-Action '')[0] '' 'a bare refresh'
+Assert-Equal (Read-Action 'start').Count 1 'a bare verb'
+$parts = Read-Action '["edit","1","09:00","12:30"]'
+Assert-Equal ($parts -join '|') 'edit|1|09:00|12:30' 'a JSON action'
+Assert-Throws { Read-Action '[1,2]' } 'a JSON action of non-strings'
+Assert-Equal (Format-Instant (ConvertFrom-Clock '9:30' ([DateTime]'2026-10-27') $tokyo)) '2026-10-27T00:30:00Z' 'a clock of the day'
+Assert-Throws { ConvertFrom-Clock '24:00' ([DateTime]'2026-10-27') $tokyo } 'hour out of range'
+Assert-Throws { ConvertFrom-Clock 'noon' ([DateTime]'2026-10-27') $tokyo } 'not a clock'
+$edited = New-Store
+[void](Invoke-Action $edited 'start' (At '2026-10-26T00:30:00Z'))
+[void](Invoke-Action $edited 'stop' (At '2026-10-26T03:45:00Z'))
+[void](Invoke-Action $edited 'start' (At '2026-10-27T00:30:00Z'))
+$tuesday = At '2026-10-27T02:00:00Z'
+$list = @(Get-Today $edited $tokyo $tuesday)
+Assert-Equal $list.Count 1 'only today is listed'
+Assert-Equal $list[0].index 1 'by its position in the store'
+$data = Build-Data $edited $zones $tuesday ''
+Assert-Equal $data.today.Count 1 'today in the data'
+Assert-Equal $data.today[0].start '09:30' 'start in Tokyo'
+Assert-Equal $data.today[0].end '' 'an open session has no end'
+if ((ConvertTo-Json -InputObject $data -Depth 5 -Compress) -notmatch '"today":\[\{') { throw 'today must stay a JSON array' }
+# The forgotten first half hour.
+Assert-Equal (Invoke-Action $edited 'edit' $tuesday $tokyo @('1', '09:00', '')) 'True' 'edit the start'
+Assert-Equal (Format-Instant $edited.sessions[1].start) '2026-10-27T00:00:00Z' 'start moved'
+Assert-Equal $edited.sessions[1].end '' 'still open'
+Assert-Equal (Build-Data $edited $zones $tuesday '').today_seconds 7200 'the half hour counts'
+Assert-Throws { Invoke-Action $edited 'edit' $tuesday $tokyo @('0', '09:00', '10:00') } 'yesterday cannot be edited from today'
+Assert-Throws { Invoke-Action $edited 'edit' $tuesday $tokyo @('7', '09:00', '10:00') } 'unknown session'
+Assert-Throws { Invoke-Action $edited 'edit' $tuesday $tokyo @('1', '12:00', '') } 'a start still to come'
+Assert-Throws { Invoke-Action $edited 'edit' $tuesday $tokyo @('1', '09:00', '12:00') } 'an end still to come'
+Assert-Throws { Invoke-Action $edited 'edit' $tuesday $tokyo @('1', '10:00', '09:30') } 'end before start'
+Assert-Throws { Invoke-Action $edited 'edit' $tuesday $tokyo @('1') } 'edit without times'
+Assert-Equal (Invoke-Action $edited 'edit' $tuesday $tokyo @('1', '09:00', '10:30')) 'True' 'an end closes the session'
+Assert-Equal (Get-Open $edited) '' 'closed by the edit'
+Assert-Throws { Invoke-Action $edited 'edit' $tuesday $tokyo @('1', '09:00', '') } 'a closed session needs an end'
+# A forgotten break, added in the past.
+Assert-Throws { Invoke-Action $edited 'add' $tuesday $tokyo @('10:00', '10:45') } 'overlap is refused'
+Assert-Throws { Invoke-Action $edited 'add' $tuesday $tokyo @('10:45', '') } 'an added session needs an end'
+Assert-Equal (Invoke-Action $edited 'add' $tuesday $tokyo @('08:00', '08:30')) 'True' 'add before the day'
+Assert-Equal $edited.sessions.Count 3 'added'
+Assert-Equal (Format-Instant $edited.sessions[1].start) '2026-10-26T23:00:00Z' 'kept in start order'
+Assert-Equal (Format-Instant $edited.sessions[2].start) '2026-10-27T00:00:00Z' 'the edited session follows'
+$data = Build-Data $edited $zones $tuesday ''
+Assert-Equal $data.today.Count 2 'both listed'
+Assert-Equal ($data.today | ForEach-Object { "$($_.index):$($_.start)-$($_.end)" }) '1:08:00-08:30 2:09:00-10:30' 'today rows'
+Assert-Equal $data.today_seconds 7200 'today after the edits'
+[void](Invoke-Action $edited 'start' $tuesday)
+Assert-Throws { Invoke-Action $edited 'add' $tuesday $tokyo @('10:50', '11:05') } 'overlaps the running session'
+Assert-Equal (Invoke-Action $edited 'delete' $tuesday $tokyo @('1')) 'True' 'delete'
+Assert-Equal $edited.sessions.Count 3 'deleted'
+Assert-Equal (Format-Instant $edited.sessions[0].start) '2026-10-26T00:30:00Z' 'yesterday untouched'
+Assert-Throws { Invoke-Action $edited 'delete' $tuesday $tokyo @('0') } 'yesterday cannot be deleted from today'
+Assert-Equal (Invoke-Action $edited 'delete' $tuesday $tokyo @('2')) 'True' 'delete the running session'
+Assert-Equal (Get-Open $edited) '' 'off after deleting the running session'
 
 # The machine slept with the session open: it ends at the last heartbeat.
 Assert-Equal (Close-Stale $store (At '2026-10-27T00:04:00Z')) 'False' 'a recent heartbeat keeps the session'
@@ -155,6 +215,9 @@ try {
     Assert-Equal $stopped.error '' 'live run without error'
     Assert-Equal (Read-Store $env:ILLIUM_APPLET_STORE).sessions.Count 1 'live history'
     Assert-Equal (& $run 'pause').error 'Unknown time tracker action: pause' 'live failure is shown'
+    $live = & $run '"[\"edit\",\"0\",\"08:00\",\"\"]"'
+    Assert-Equal $live.error 'An end is needed; only the running session can stay open' 'live JSON action reaches the provider'
+    Assert-Equal $live.today.Count 1 'live today list'
 } finally {
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item Env:\ILLIUM_APPLET_STORE -ErrorAction SilentlyContinue
