@@ -8,6 +8,8 @@ pulse = "{working}"
 # Also the heartbeat that ends a session left open while the machine slept.
 interval = "1m"
 popup = { width = 360, height = 440 }
+# The session times are typed in the popup.
+focusable = true
 
 [settings]
 # City|Windows time zone identifier, separated by semicolons. The first zone
